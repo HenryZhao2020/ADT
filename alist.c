@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdint.h>
 #include "alist.h"
 
 struct alist {
@@ -10,7 +11,7 @@ struct alist {
   size_t capacity;
 };
 
-const size_t ALIST_INDEX_NOT_FOUND = __SIZE_MAX__;
+const size_t ALIST_INDEX_NOT_FOUND = SIZE_MAX;
 
 alist *alist_create(const datatype *type) {
   alist *al = malloc(sizeof(*al));
@@ -43,10 +44,7 @@ void alist_destroy(alist *al) {
 }
 
 void alist_clear(alist *al) {
-  if (!al) {
-    return;
-  }
-
+  assert(al);
   for (size_t i = 0; i < al->len; ++i) {
     data_dealloc(al->data[i], al->type);
   }
@@ -151,13 +149,13 @@ bool alist_append(const void *item, alist *al) {
   assert(al);
 
   if (al->len == al->capacity) {
-    void **new_data = realloc(al->data, 
-                              sizeof(*al->data) * (al->capacity * 2));
+    size_t new_capacity = al->capacity * 2;
+    void **new_data = realloc(al->data,  sizeof(*al->data) * new_capacity);
     if (!new_data) {
       return false;
     }
     al->data = new_data;
-    al->capacity *= 2;
+    al->capacity = new_capacity;
   }
 
   void *item_copy = data_dup(item, al->type);
@@ -176,13 +174,13 @@ bool alist_insert(size_t index, const void *item, alist *al) {
   assert(index <= al->len);
 
   if (al->len == al->capacity) {
-    void **new_data = realloc(al->data, 
-                              sizeof(*al->data) * (al->capacity * 2));
+    size_t new_capacity = al->capacity * 2;
+    void **new_data = realloc(al->data,  sizeof(*al->data) * new_capacity);
     if (!new_data) {
       return false;
     }
     al->data = new_data;
-    al->capacity *= 2;
+    al->capacity = new_capacity;
   }
 
   for (size_t i = al->len; i > index; --i) {
