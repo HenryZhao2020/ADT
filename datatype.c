@@ -45,20 +45,10 @@ size_t data_size(const datatype *type) {
   return type->size;
 }
 
-void *(*data_dup_method(const datatype *type))(const void *) {
-  assert(type);
-  return type->dup;
-}
-
 void *data_dup(const void *item, const datatype *type) {
   assert(item);
   assert(type);
   return type->dup(item);
-}
-
-void (*data_dealloc_method(const datatype *type))(void *) {
-  assert(type);
-  return type->dealloc;
 }
 
 void data_dealloc(void *item, const datatype *type) {
@@ -67,27 +57,17 @@ void data_dealloc(void *item, const datatype *type) {
   type->dealloc(item);
 }
 
-void (*data_print_method(const datatype *type))(const void *) {
-  assert(type);
-  return type->print;
-}
-
 void data_print(const void *item, const datatype *type) {
   assert(item);
   assert(type);
   type->print(item);
 }
 
-int (*data_cmp_method(const datatype *type))(const void *, const void *) {
+int data_cmp(const void *a, const void *b, const datatype *type) {
+  assert(a);
+  assert(b);
   assert(type);
-  return type->cmp;
-}
-
-int data_cmp(const void *item1, const void *item2, const datatype *type) {
-  assert(item1);
-  assert(item2);
-  assert(type);
-  return type->cmp(item1, item2);
+  return type->cmp(a, b);
 }
 
 static void *dup_int(const void *item) {
@@ -98,8 +78,7 @@ static void *dup_int(const void *item) {
     return NULL;
   }
   *dup = *int_ptr;
-  void *dup_void = dup;
-  return dup_void;
+  return dup;
 }
 
 static void print_int(const void *item) {
@@ -108,12 +87,12 @@ static void print_int(const void *item) {
   printf("%d", *int_ptr);
 }
 
-static int cmp_int(const void *item1, const void *item2) {
-  assert(item1);
-  assert(item2);
-  const int *int_ptr1 = item1;
-  const int *int_ptr2 = item2;
-  return *int_ptr1 - *int_ptr2;
+static int cmp_int(const void *a, const void *b) {
+  assert(a);
+  assert(b);
+  const int *a_ptr = a;
+  const int *b_ptr = b;
+  return (*a_ptr > *b_ptr) - (*a_ptr < *b_ptr);
 }
 
 const datatype *int_type(void) {
