@@ -6,19 +6,21 @@
 
 #include <stddef.h>
 
-// A datatype stores information of its associated data.
+// A datatype stores the size (in bytes) of its associated data and
+//   provides the following methods for use in generic ADTs:
+//   - dup:     creates a deep copy of an item (heap-allocated)
+//   - dealloc: frees a deep copy of an item (heap-allocated)
+//   - print:   displays an item
+//   - cmp:     compares two items (returns 0 if equal, a positive integer 
+//              if the first item is greater than the second, and a negative 
+//              integer if the first item is less than the second)
 typedef struct datatype datatype;
 
 // Wrap stack variables to temporary pointers for generic storage ADTs
 #define WRAP_INT(i) (&(int) {i})
 
 // datatype_create(size, dup, dealloc, print, cmp) produces a datatype ADT
-//   that stores the data size in bytes and provides the following methods:
-//   - dup: dup_XXX(item) creates a deep copy of item on the heap memory
-//   - dealloc: dealloc_XXX(item) frees item from the heap memory
-//   - print: print_XXX(item) displays item
-//   - cmp: cmp_XXX(a, b) produces 0 if a and b are equal, a negative integer 
-//          if a < b, and a positive integer if a > b
+//   with the given attributes (see datatype documentation above).
 // requires: dup, dealloc, print, cmp are not NULL
 // effects: allocates heap memory [caller must free with datatype_destroy]
 // note: returns NULL if allocation fails
@@ -39,55 +41,36 @@ void datatype_destroy(datatype *type);
 // time: O(1)
 size_t data_size(const datatype *type);
 
-// data_dup_method(type) produces the dup method of type.
-// requires: type is not NULL
-// time: O(1)
-void *(*data_dup_method(const datatype *type))(const void *);
-
-// data_dup(item, type) produces a deep copy of item using
-//   the dup method provided by type.
+// data_dup(item, type) produces a deep copy of item in the heap memory
+//   using the dup method of type.
+// note: the returned pointer must be freed using data_dealloc, not free
 // requires: item and type are not NULL
-// effects: allocates heap memory [depends on the dup method of type]
+// effects: allocates heap memory
 // note: returns NULL if allocation fails
 // time: [time of the dup method of type]
 void *data_dup(const void *item, const datatype *type);
 
-// data_dealloc_method(type) produces the dealloc method of type.
-// requires: type is not NULL
-// time: O(1)
-void (*data_dealloc_method(const datatype *type))(void *);
-
-// data_dealloc(item, type) frees item from the memory using
-//   the dealloc method provided by type.
+// data_dealloc(item, type) frees item from the heap memory using
+//   the dealloc method of type.
 // requires: item and type are not NULL
-// effects: frees memory of the deep copy of item
+// effects: frees heap memory
 // time: [time of the dealloc method of type]
 void data_dealloc(void *item, const datatype *type);
 
-// data_print_method(type) produces the print method of type.
-// requires: type is not NULL
-// time: O(1)
-void (*data_print_method(const datatype *type))(const void *);
-
-// data_print(item, type) prints item using the print method provided by type.
+// data_print(item, type) displays item using the print method of type.
 // requires: item and type are not NULL
 // effects: produces output
 // time: [time of the print method of type]
 void data_print(const void *item, const datatype *type);
 
-// data_cmp_method(type) produces the cmp method of type.
-// requires: type is not NULL
-// time: O(1)
-int (*data_cmp_method(const datatype *type))(const void *, const void *);
-
-// data_cmp(item1, item2, type) produces 0 if item1 and item2 are equal 
-//   and a non-zero integer otherwise.
-// requires: item1, item2, and type are not NULL
+// data_cmp(a, b, type) produces 0 if a and b are equal, a negative integer 
+//   if a < b, and a positive integer if a > b.
+// requires: a, b, and type are not NULL
 // time: [time of the cmp method of type]
-int data_cmp(const void *item1, const void *item2, const datatype *type);
+int data_cmp(const void *a, const void *b, const datatype *type);
 
-// int_type() returns a shared singleton int datatype ADT.
-// note: the returned pointer must not be freed via datatype_destroy
+// int_type() produces a shared singleton int datatype ADT.
+// note: the returned pointer must not be freed
 // time: O(1)
 const datatype *int_type(void);
 

@@ -1,4 +1,4 @@
-// This module provides the alist ADT, similar to ArrayList in Java.
+// This module provides the alist ADT.
 
 #ifndef ALIST_H
 #define ALIST_H
@@ -6,13 +6,16 @@
 #include <stdbool.h>
 #include "datatype.h"
 
-// alist stores items in a dynamic array.
+// alist stores items in a dynamic array, making it efficient at
+//   selecting and searching items (if sorted).
+// note: All item arguments are deep-copied using the datatype’s dup method.
+//       The caller retains ownership of the original item.
 typedef struct alist alist;
 
-// The return value if an item is not in alist
+// The return value if an item is not in alist (SIZE_MAX)
 extern const size_t ALIST_INDEX_NOT_FOUND;
 
-// Method alias
+// Alias: alist_length(al) == alist_size(al)
 #define alist_length alist_size
 
 // alist_create(type) produces a new alist which stores items of 
@@ -31,7 +34,8 @@ alist *alist_create(const datatype *type);
 void alist_destroy(alist *al);
 
 // alist_clear(al) removes all items from al.
-// effects: frees heap memory
+// requires: al is not NULL
+// effects: modifies al, frees heap memory
 // time: O(n * m)
 //   n = number of items in al,
 //   m = number of steps to free each item
@@ -92,7 +96,7 @@ const void *alist_get(size_t index, const alist *al);
 // effects: modifies al (replaces the old item)
 // time: O(m)
 //   m = number of steps to deallocate and copy an item
-// note: produces true if operation is successful, false otherwise
+// note: produces true if a deep copy is made successfully, false otherwise
 bool alist_set(size_t index, const void *item, alist *al);
 
 // alist_append(item, al) adds a deep copy of item to the back of al.
@@ -100,7 +104,7 @@ bool alist_set(size_t index, const void *item, alist *al);
 // effects: modifies al 
 // time: O(1) amortized + O(m)
 //   m = number of steps to copy an item
-// note: produces true if operation is successful, false otherwise
+// note: produces true if a deep copy is made successfully, false otherwise
 bool alist_append(const void *item, alist *al);
 
 // alist_insert(index, item, al) inserts a deep copy of item before the 
@@ -111,7 +115,7 @@ bool alist_append(const void *item, alist *al);
 // time: O(n + m)
 //   n = number of items shifted,
 //   m = number of steps to copy the inserted item
-// note: produces true if operation is successful, false otherwise
+// note: produces true if a deep copy is made successfully, false otherwise
 bool alist_insert(size_t index, const void *item, alist *al);
 
 // alist_pop(index, al) removes the item at the given index position in al.
@@ -196,7 +200,7 @@ size_t alist_count(const void *item, const alist *al);
 void alist_swap(size_t i, size_t j, alist *al);
 
 // alist_bsearch(item, al) produces any index position of item in al
-//   and ALIST_INDEX_NOT_FOUND if item is not in al.
+//   using binary search and ALIST_INDEX_NOT_FOUND if item is not in al.
 // requires: item and al are not NULL
 //           al is non-empty
 //           al is sorted in ascending order [not asserted]
@@ -209,7 +213,7 @@ size_t alist_bsearch(const void *item, const alist *al);
 //   and the quicksort algorithm.
 // requires: al is not NULL
 // effects: modifies al
-// time: O((n + m)^2)
+// time: O(nlog(n) * m) average case, O(n^2 * m) worst case
 //   n = number of items in al
 //   m = number of steps to compare two elements in al
 void alist_qsort(alist *al);
