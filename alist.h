@@ -58,6 +58,11 @@ alist *alist_dup(const alist *al);
 //   m = number of steps to print each item
 void alist_print(const alist *al);
 
+// alist_equals(a, b) produces true if a and b are equal and false otherwise.
+// requires: a and b are not NULL
+// time: O(n), n = min(alist_size(a), alist_size(b))
+bool alist_equals(const alist *a, const alist *b);
+
 // alist_size(al) produces the number of items in al.
 // requires: al is not NULL
 // time: O(1)
@@ -98,6 +103,14 @@ const void *alist_get(size_t index, const alist *al);
 //   m = number of steps to deallocate and copy an item
 // note: produces true if a deep copy is made successfully, false otherwise
 bool alist_set(size_t index, const void *item, alist *al);
+
+// alist_swap(i, j, al) swaps the items at index positions i and j in al.
+// requires: al is not NULL
+//           0 <= i < alist_size(al)
+//           0 <= j < alist_size(al)
+// effects: modifies al
+// time: O(1)
+void alist_swap(size_t i, size_t j, alist *al);
 
 // alist_append(item, al) adds a deep copy of item to the back of al.
 // requires: item and al are not NULL
@@ -191,13 +204,14 @@ size_t alist_index_last(const void *item, const alist *al);
 //   m = number of steps to compare item with each element in al
 size_t alist_count(const void *item, const alist *al);
 
-// alist_swap(i, j, al) swaps the items at index positions i and j in al.
+// alist_qsort(al) sorts al using the cmp method provided by al's type
+//   and the quicksort algorithm.
 // requires: al is not NULL
-//           0 <= i < alist_size(al)
-//           0 <= j < alist_size(al)
 // effects: modifies al
-// time: O(1)
-void alist_swap(size_t i, size_t j, alist *al);
+// time: O(nlog(n) * m) average case, O(n^2 * m) worst case
+//   n = number of items in al
+//   m = number of steps to compare two elements in al
+void alist_qsort(alist *al);
 
 // alist_bsearch(item, al) produces any index position of item in al
 //   using binary search and ALIST_INDEX_NOT_FOUND if item is not in al.
@@ -209,14 +223,11 @@ void alist_swap(size_t i, size_t j, alist *al);
 //   m = number of steps to compare item with each element in al
 size_t alist_bsearch(const void *item, const alist *al);
 
-// alist_qsort(al) sorts al using the cmp method provided by al's type
-//   and the quicksort algorithm.
+// alist_reverse(al) reverses the order of items in al.
 // requires: al is not NULL
 // effects: modifies al
-// time: O(nlog(n) * m) average case, O(n^2 * m) worst case
-//   n = number of items in al
-//   m = number of steps to compare two elements in al
-void alist_qsort(alist *al);
+// time: O(n)
+void alist_reverse(alist *al);
 
 // alist_filter(pred, al) produces an alist containing items in al
 //   filtered by pred.
