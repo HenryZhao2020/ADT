@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include <stdint.h>
 #include "alist.h"
@@ -12,6 +13,10 @@ struct alist {
 };
 
 const size_t ALIST_INDEX_NOT_FOUND = SIZE_MAX;
+
+// Helper function declaration
+static void qsort_range(void **data, size_t first, size_t last,
+                        const datatype *type);
 
 alist *alist_create(const datatype *type) {
   alist *al = malloc(sizeof(*al));
@@ -94,6 +99,22 @@ void alist_print(const alist *al) {
   printf("]\n");
 }
 
+bool alist_equals(const alist *a, const alist *b) {
+  assert(a);
+  assert(b);
+
+  if (a->len != b->len || !datatype_equals(a->type, b->type)) {
+    return false;
+  }
+
+  for (size_t i = 0; i < a->len; ++i) {
+    if (data_cmp(a->data[i], b->data[i], a->type)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 size_t alist_size(const alist *al) {
   assert(al);
   return al->len;
@@ -127,6 +148,16 @@ const void *alist_get(size_t index, const alist *al) {
   assert(al);
   assert(index < al->len);
   return al->data[index];
+}
+
+void alist_swap(size_t i, size_t j, alist *al) {
+  assert(al);
+  assert(i < al->len);
+  assert(j < al->len);
+
+  void *temp = al->data[i];
+  al->data[i] = al->data[j];
+  al->data[j] = temp;
 }
 
 bool alist_set(size_t index, const void *item, alist *al) {
@@ -299,14 +330,11 @@ size_t alist_count(const void *item, const alist *al) {
   return count;
 }
 
-void alist_swap(size_t i, size_t j, alist *al) {
+void alist_qsort(alist *al) {
   assert(al);
-  assert(i < al->len);
-  assert(j < al->len);
-
-  void *temp = al->data[i];
-  al->data[i] = al->data[j];
-  al->data[j] = temp;
+  if (al->len > 0) {
+    qsort_range(al->data, 0, al->len - 1, al->type);
+  }
 }
 
 size_t alist_bsearch(const void *item, const alist *al) {
@@ -331,8 +359,38 @@ size_t alist_bsearch(const void *item, const alist *al) {
   return ALIST_INDEX_NOT_FOUND;
 }
 
-static void alist_qsort_range(void **data, size_t first, size_t last,
-                              const datatype *type) {
+void alist_reverse(alist *al) {
+  assert(al);
+  for (size_t i = 0; i < al->len / 2; ++i) {
+    alist_swap(i, al->len - i - 1, al);
+  }
+}
+
+alist *alist_filter(bool (*pred)(const void *), const alist *al) {
+  assert(pred);
+  assert(al);
+
+  alist *filtered = alist_create(al->type);
+  for (size_t i = 0; i < al->len; ++i) {
+    if (pred(al->data[i])) {
+      alist_append(al->data[i], filtered);
+    }
+  }
+  return filtered;
+}
+
+void alist_map(void (*map)(void *), alist *al) {
+  assert(map);
+  assert(al);
+
+  for (size_t i = 0; i < al->len; ++i) {
+    map(al->data[i]);
+  }
+}
+
+// Helper function implementation
+static void qsort_range(void **data, size_t first, size_t last,
+                        const datatype *type) {
   assert(data);
   assert(type);
 
@@ -358,36 +416,7 @@ static void alist_qsort_range(void **data, size_t first, size_t last,
 
   // Prevent underflow when pos == 0
   if (pos > 0) {
-    alist_qsort_range(data, first, pos - 1, type);
+    qsort_range(data, first, pos - 1, type);
   }
-  alist_qsort_range(data, pos + 1, last, type);
-}
-
-void alist_qsort(alist *al) {
-  assert(al);
-  if (al->len > 0) {
-    alist_qsort_range(al->data, 0, al->len - 1, al->type);
-  }
-}
-
-alist *alist_filter(bool (*pred)(const void *), const alist *al) {
-  assert(pred);
-  assert(al);
-
-  alist *filtered = alist_create(al->type);
-  for (size_t i = 0; i < al->len; ++i) {
-    if (pred(al->data[i])) {
-      alist_append(al->data[i], filtered);
-    }
-  }
-  return filtered;
-}
-
-void alist_map(void (*map)(void *), alist *al) {
-  assert(map);
-  assert(al);
-
-  for (size_t i = 0; i < al->len; ++i) {
-    map(al->data[i]);
-  }
+  qsort_range(data, pos + 1, last, type);
 }
