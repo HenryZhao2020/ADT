@@ -5,21 +5,32 @@
 #define DATATYPE_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
-// A datatype stores the size (in bytes) of its associated data and
-//   provides the following methods for use in generic ADTs:
-//   - dup:     creates a deep copy of an item (heap-allocated)
-//   - dealloc: frees a deep copy of an item (heap-allocated)
-//   - print:   displays an item
-//   - cmp:     compares two items (returns 0 if equal, a positive integer 
-//              if the first item is greater than the second, and a negative 
-//              integer if the first item is less than the second)
+// A datatype represents a type descriptor for use in generic ADTs.
+// attributes:
+//   - id:      a unique identifier assigned to a datatype [not user-defined]
+//   - size:    the size in bytes of the associated data
+// methods:
+//   - dup:     returns a deep copy of the given item (heap-allocated)
+//   - dealloc: frees an item previously created by dup
+//   - print:   displays a human-readable representation of the item
+//   - cmp:     compares two items a and b
+//              returns 0 if equal, <0 if a < b, >0 if a > b
+// notes:
+//   - Datatypes are uniquely identified by their IDs.
+//   - Clients must ensure only one instance of a given datatype is created.
+//     All uses of the same type must refer to the same datatype pointer.
 typedef struct datatype datatype;
 
 // Wrap stack variables to temporary pointers for generic storage ADTs
 #define WRAP_INT(i) (&(int) {i})
+#define WRAP_FLOAT(f) (&(float) {f})
+#define WRAP_DOUBLE(d) (&(double) {d})
+#define WRAP_BOOL(b) (&(bool) {b})
+#define WRAP_CHAR(c) (&(char) {c})
 
-// datatype_create(size, dup, dealloc, print, cmp) produces a datatype ADT
+// datatype_create(size, dup, dealloc, print, cmp) produces a datatype 
 //   with the given attributes (see datatype documentation above).
 // requires: dup, dealloc, print, cmp are not NULL
 // effects: allocates heap memory [caller must free with datatype_destroy]
@@ -35,6 +46,12 @@ const datatype *datatype_create(size_t size,
 // effects: frees heap memory [type becomes invalid]
 // time: O(1)
 void datatype_destroy(datatype *type);
+
+// datatype_equals(a, b) produces true if a and b have the same ID
+//   and false otherwise.
+// requires: a and b are not NULL
+// time: O(1)
+bool datatype_equals(const datatype *a, const datatype *b);
 
 // data_size(type) produces the data size of type in bytes.
 // requires: type is not NULL
@@ -73,5 +90,25 @@ int data_cmp(const void *a, const void *b, const datatype *type);
 // note: the returned pointer must not be freed
 // time: O(1)
 const datatype *int_type(void);
+
+// float_type() produces a shared singleton float datatype ADT.
+// note: the returned pointer must not be freed
+// time: O(1)
+const datatype *float_type(void);
+
+// double_type() produces a shared singleton double datatype ADT.
+// note: the returned pointer must not be freed
+// time: O(1)
+const datatype *double_type(void);
+
+// bool_type() produces a shared singleton bool datatype ADT.
+// note: the returned pointer must not be freed
+// time: O(1)
+const datatype *bool_type(void);
+
+// char_type() produces a shared singleton char datatype ADT.
+// note: the returned pointer must not be freed
+// time: O(1)
+const datatype *char_type(void);
 
 #endif
