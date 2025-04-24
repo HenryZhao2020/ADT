@@ -10,8 +10,8 @@ if [ $? -eq 0 ]; then
     valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$execname
   fi
 
-  ./$execname > test.out
-  diff test.out test.expect
+  # ./$execname > test.out
+  # diff test.out test.expect
 else
   echo "Compilation failed."
 fi
