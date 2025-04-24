@@ -41,6 +41,31 @@ static void double_truncate(void *item) {
   *double_ptr = rounded;
 }
 
+static bool bool_is_true(const void *item) {
+  assert(item);
+  const bool *bool_ptr = item;
+  return *bool_ptr;
+}
+
+static void bool_toggle(void *item) {
+  assert(item);
+  bool *bool_ptr = item;
+  *bool_ptr = !(*bool_ptr);
+}
+
+static bool char_is_vowel(const void *item) {
+  assert(item);
+  const char *char_ptr = item;
+  char c = *char_ptr;
+  return (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u'); 
+}
+
+static void char_to_upper(void *item) {
+  assert(item);
+  char *char_ptr = item;
+  *char_ptr += ('A' - 'a');
+}
+
 static void test_alist_int(void) {
   alist *al = NULL;
   alist *al_copy = NULL;
@@ -395,6 +420,236 @@ static void test_alist_double(void) {
   alist_destroy(NULL);
 }
 
+static void test_alist_bool(void) {
+  alist *al = NULL;
+  alist *al_copy = NULL;
+  const bool *item = NULL;
+
+  // Test alist_create
+  al = alist_create(bool_type());
+
+  // Test alist_size, alist_empty
+  assert(alist_size(al) == 0);
+  assert(alist_empty(al));
+  alist_print(al);        // []
+
+  // Test alist_append
+  alist_append(WRAP_BOOL(true), al);
+  alist_append(WRAP_BOOL(false), al);
+  alist_append(WRAP_BOOL(true), al);
+  assert(alist_size(al) == 3);
+  assert(!alist_empty(al));
+  alist_print(al);        // [true, false, true]
+
+  // Test alist_capacity, alist_reserve
+  assert(alist_capacity(al) == 4);
+  alist_reserve(10, al);
+  assert(alist_capacity(al) == 10);
+  alist_print(al);        // [true, false, true]
+
+  // Test alist_insert
+  alist_insert(0, WRAP_BOOL(false), al);
+  alist_insert(2, WRAP_BOOL(true), al);
+  alist_insert(alist_size(al), WRAP_BOOL(false), al);
+  alist_print(al);        // [false, true, true, false, true, false]
+
+  // Test alist_contains
+  assert(alist_contains(WRAP_BOOL(true), al));
+  assert(alist_contains(WRAP_BOOL(false), al));
+  // Test alist_index
+  assert(alist_index(WRAP_BOOL(true), al) == 1);
+  // Test alist_index_last
+  assert(alist_index_last(WRAP_BOOL(true), al) == 4);
+  assert(alist_index_last(WRAP_BOOL(false), al) == 5);
+  // Test alist_count
+  assert(alist_count(WRAP_BOOL(true), al) == 3);
+  assert(alist_count(WRAP_BOOL(false), al) == 3);
+
+  // Test alist_dup
+  al_copy = alist_dup(al);
+  alist_print(al_copy);   // [false, true, true, false, true, false]
+  // Test alist_equals
+  assert(alist_equals(al, al_copy));
+  assert(alist_equals(al_copy, al));
+
+  // Test alist_get, alist_set
+  item = alist_get(0, al_copy);
+  assert(*item == false);
+  alist_set(0, WRAP_BOOL(true), al_copy);
+  item = alist_get(0, al_copy);
+  assert(*item == true);
+  item = alist_get(0, al);
+  assert(*item == false);
+  alist_print(al_copy);   // [true, true, true, false, true, false]
+  assert(!alist_equals(al, al_copy));
+
+  // Test alist_pop
+  alist_pop(2, al_copy);
+  alist_print(al_copy);   // [true, true, false, true, false]
+  // Test alist_remove
+  alist_remove(WRAP_BOOL(false), al_copy);
+  alist_print(al_copy);   // [true, true, true, false]
+  // Test alist_remove_last
+  alist_remove_last(WRAP_BOOL(true), al_copy);
+  alist_print(al_copy);   // [true, true, false]
+  // Test alist_remove_all
+  alist_remove_all(WRAP_BOOL(true), al_copy);
+  alist_print(al_copy);   // [false]
+
+  // Test alist_clear
+  alist_clear(al_copy);
+  alist_print(al_copy);   // []
+
+  // Test alist_swap
+  alist_swap(2, 4, al);
+  alist_print(al);        // [false, true, true, false, true, false]
+  alist_swap(5, 1, al);
+  alist_print(al);        // [false, false, true, false, true, true]
+  // Test alist_qsort
+  alist_qsort(al);
+  alist_print(al);        // [false, false, false, true, true, true]
+  // Test alist_bsearch
+  assert(alist_bsearch(WRAP_BOOL(true), al) != ALIST_INDEX_NOT_FOUND);
+  assert(alist_bsearch(WRAP_BOOL(false), al) != ALIST_INDEX_NOT_FOUND);
+
+  // Test alist_filter
+  alist_destroy(al_copy);
+  al_copy = alist_filter(bool_is_true, al);
+  alist_print(al_copy);   // [true, true, true]
+  // Test alist_map
+  alist_map(bool_toggle, al_copy);
+  alist_print(al_copy);   // [false, false, false]
+
+  // Test alist_reverse
+  alist_reverse(al);      // Even number of items
+  alist_print(al);        // [true, true, true, false, false, false]
+  alist_insert(0, WRAP_BOOL(true), al);
+  alist_reverse(al);      // Odd number of items
+  alist_print(al);        // [false, false, false, true, true, true, true]
+
+  // Test alist_destroy
+  alist_destroy(al);
+  alist_destroy(al_copy);
+  alist_destroy(NULL);
+}
+
+static void test_alist_char(void) {
+  alist *al = NULL;
+  alist *al_copy = NULL;
+  const char *item = NULL;
+
+  // Test alist_create
+  al = alist_create(char_type());
+
+  // Test alist_size, alist_empty
+  assert(alist_size(al) == 0);
+  assert(alist_empty(al));
+  alist_print(al);        // []
+
+  // Test alist_append
+  alist_append(WRAP_CHAR('a'), al);
+  alist_append(WRAP_CHAR('b'), al);
+  alist_append(WRAP_CHAR('c'), al);
+  assert(alist_size(al) == 3);
+  assert(!alist_empty(al));
+  alist_print(al);        // ['a', 'b', 'c']
+
+  // Test alist_capacity, alist_reserve
+  assert(alist_capacity(al) == 4);
+  alist_reserve(10, al);
+  assert(alist_capacity(al) == 10);
+  alist_print(al);        // ['a', 'b', 'c']
+
+  // Test alist_insert
+  alist_insert(0, WRAP_CHAR('d'), al);
+  alist_insert(2, WRAP_CHAR('e'), al);
+  alist_insert(alist_size(al), WRAP_CHAR('f'), al);
+  alist_print(al);        // ['d', 'a', 'e', 'b', 'c', 'f']
+
+  // Test alist_contains
+  assert(alist_contains(WRAP_CHAR('a'), al));
+  assert(!alist_contains(WRAP_CHAR('z'), al));
+  // Test alist_index
+  assert(alist_index(WRAP_CHAR('b'), al) == 3);
+  assert(alist_index(WRAP_CHAR('z'), al) == ALIST_INDEX_NOT_FOUND);
+  // Test alist_index_last
+  assert(alist_index_last(WRAP_CHAR('c'), al) == 4);
+  assert(alist_index_last(WRAP_CHAR('f'), al) == 5);
+  assert(alist_index_last(WRAP_CHAR('x'), al) == ALIST_INDEX_NOT_FOUND);
+  // Test alist_count
+  assert(alist_count(WRAP_CHAR('a'), al) == 1);
+  assert(alist_count(WRAP_CHAR('b'), al) == 1);
+  assert(alist_count(WRAP_CHAR('z'), al) == 0);
+
+  // Test alist_dup
+  al_copy = alist_dup(al);
+  alist_print(al_copy);   // ['d', 'a', 'e', 'b', 'c', 'f']
+  // Test alist_equals
+  assert(alist_equals(al, al_copy));
+  assert(alist_equals(al_copy, al));
+
+  // Test alist_get, alist_set
+  item = alist_get(0, al_copy);
+  assert(*item == 'd');
+  alist_set(0, WRAP_CHAR('g'), al_copy);
+  item = alist_get(0, al_copy);
+  assert(*item == 'g');
+  item = alist_get(0, al);
+  assert(*item == 'd');
+  alist_print(al_copy);   // ['g', 'a', 'e', 'b', 'c', 'f']
+  assert(!alist_equals(al, al_copy));
+
+  // Test alist_pop
+  alist_pop(2, al_copy);
+  alist_print(al_copy);   // ['g', 'a', 'b', 'c', 'f']
+  // Test alist_remove
+  alist_remove(WRAP_CHAR('f'), al_copy);
+  alist_print(al_copy);   // ['g', 'a', 'b', 'c']
+  // Test alist_remove_last
+  alist_remove_last(WRAP_CHAR('a'), al_copy);
+  alist_print(al_copy);   // ['g', 'b', 'c']
+  // Test alist_remove_all
+  alist_remove_all(WRAP_CHAR('b'), al_copy);
+  alist_print(al_copy);   // ['g', 'c']
+
+  // Test alist_clear
+  alist_clear(al_copy);
+  alist_print(al_copy);
+
+  // Test alist_swap
+  alist_swap(2, 4, al);
+  alist_print(al);        // ['d', 'a', 'e', 'b', 'c', 'f']
+  alist_swap(5, 1, al);
+  alist_print(al);        // ['d', 'f', 'e', 'b', 'c', 'a']
+  // Test alist_qsort
+  alist_qsort(al);
+  alist_print(al);        // ['a', 'b', 'c', 'd', 'e', 'f']
+  // Test alist_bsearch
+  assert(alist_bsearch(WRAP_CHAR('a'), al) != ALIST_INDEX_NOT_FOUND);
+  assert(alist_bsearch(WRAP_CHAR('f'), al) != ALIST_INDEX_NOT_FOUND);
+  assert(alist_bsearch(WRAP_CHAR('z'), al) == ALIST_INDEX_NOT_FOUND);
+
+  // Test alist_filter
+  alist_destroy(al_copy);
+  al_copy = alist_filter(char_is_vowel, al);
+  alist_print(al_copy);   // ['a', 'e']
+  // Test alist_map
+  alist_map(char_to_upper, al_copy);
+  alist_print(al_copy);   // ['A', 'E']
+
+  // Test alist_reverse
+  alist_reverse(al);
+  alist_print(al);        // ['f', 'e', 'd', 'c', 'b', 'a']
+  alist_insert(0, WRAP_CHAR('z'), al);
+  alist_reverse(al);
+  alist_print(al);        // ['a', 'b', 'c', 'd', 'e', 'f', 'z']
+
+  // Test alist_destroy
+  alist_destroy(al);
+  alist_destroy(al_copy);
+  alist_destroy(NULL);
+}
+
 int main(void) {
   printf("test_alist_int:\n");
   test_alist_int();
@@ -406,5 +661,13 @@ int main(void) {
 
   printf("test_alist_double:\n");
   test_alist_double();
+  printf("\n");
+
+  printf("test_alist_bool:\n");
+  test_alist_bool();
+  printf("\n");
+
+  printf("test_alist_char:\n");
+  test_alist_char();
   printf("\n");
 }
