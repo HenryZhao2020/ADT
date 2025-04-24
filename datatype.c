@@ -26,15 +26,26 @@ static size_t next_id = 100;
 
 // Helper function declaration
 static void *dup_memcpy(const void *src, size_t size);
+
 static void *dup_int(const void *item);
 static void print_int(const void *item);
 static int cmp_int(const void *a, const void *b);
+
 static void *dup_float(const void *item);
 static void print_float(const void *item);
 static int cmp_float(const void *a, const void *b);
+
 static void *dup_double(const void *item);
 static void print_double(const void *item);
 static int cmp_double(const void *a, const void *b);
+
+static void *dup_bool(const void *item);
+static void print_bool(const void *item);
+static int cmp_bool(const void *a, const void *b);
+
+static void *dup_char(const void *item);
+static void print_char(const void *item);
+static int cmp_char(const void *a, const void *b);
 
 const datatype *datatype_create(size_t size,
                                 void *(*dup)(const void *),
@@ -103,7 +114,7 @@ int data_cmp(const void *a, const void *b, const datatype *type) {
 }
 
 const datatype *int_type(void) {
-  static const datatype type = {
+  static const datatype _int_type = {
     .id = 0,
     .size = sizeof(int),
     .dup = dup_int,
@@ -111,11 +122,11 @@ const datatype *int_type(void) {
     .print = print_int,
     .cmp = cmp_int,
   };
-  return &type;
+  return &_int_type;
 }
 
 const datatype *float_type(void) {
-  static const datatype type = {
+  static const datatype _float_type = {
     .id = 1,
     .size = sizeof(float),
     .dup = dup_float,
@@ -123,11 +134,11 @@ const datatype *float_type(void) {
     .print = print_float,
     .cmp = cmp_float,
   };
-  return &type;
+  return &_float_type;
 }
 
 const datatype *double_type(void) {
-  static const datatype type = {
+  static const datatype _double_type = {
     .id = 2,
     .size = sizeof(double),
     .dup = dup_double,
@@ -135,7 +146,31 @@ const datatype *double_type(void) {
     .print = print_double,
     .cmp = cmp_double,
   };
-  return &type;
+  return &_double_type;
+}
+
+const datatype *bool_type(void) {
+  static const datatype _bool_type = {
+    .id = 3,
+    .size = sizeof(bool),
+    .dup = dup_bool,
+    .dealloc = free,
+    .print = print_bool,
+    .cmp = cmp_bool,
+  };
+  return &_bool_type;
+}
+
+const datatype *char_type(void) {
+  static const datatype _char_type = {
+    .id = 4,
+    .size = sizeof(char),
+    .dup = dup_char,
+    .dealloc = free,
+    .print = print_char,
+    .cmp = cmp_char,
+  };
+  return &_char_type;
 }
 
 // Helper function implementation
@@ -203,5 +238,43 @@ static int cmp_double(const void *a, const void *b) {
   assert(b);
   const double *a_ptr = a;
   const double *b_ptr = b;
+  return (*a_ptr > *b_ptr) - (*a_ptr < *b_ptr);
+}
+
+static void *dup_bool(const void *item) {
+  assert(item);
+  return dup_memcpy(item, sizeof(bool));
+}
+
+static void print_bool(const void *item) {
+  assert(item);
+  const bool *bool_ptr = item;
+  printf(*bool_ptr ? "true" : "false");
+}
+
+static int cmp_bool(const void *a, const void *b) {
+  assert(a);
+  assert(b);
+  const bool *a_ptr = a;
+  const bool *b_ptr = b;
+  return (*a_ptr > *b_ptr) - (*a_ptr < *b_ptr);
+}
+
+static void *dup_char(const void *item) {
+  assert(item);
+  return dup_memcpy(item, sizeof(char));
+}
+
+static void print_char(const void *item) {
+  assert(item);
+  const char *char_ptr = item;
+  printf("%c", *char_ptr);
+}
+
+static int cmp_char(const void *a, const void *b) {
+  assert(a);
+  assert(b);
+  const char *a_ptr = a;
+  const char *b_ptr = b;
   return (*a_ptr > *b_ptr) - (*a_ptr < *b_ptr);
 }

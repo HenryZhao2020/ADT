@@ -12,12 +12,12 @@
 //   - id:      a unique identifier assigned to a datatype [not user-defined]
 //   - size:    the size in bytes of the associated data
 // methods:
-//   - dup:     returns a deep copy of the given item (heap-allocated)
+//   - dup:     creates a deep copy of the given item (heap-allocated)
 //   - dealloc: frees an item previously created by dup
 //   - print:   displays a human-readable representation of the item
 //   - cmp:     compares two items a and b
 //              returns 0 if equal, <0 if a < b, >0 if a > b
-// notes:
+// note:
 //   - Datatypes are uniquely identified by their IDs.
 //   - Clients must ensure only one instance of a given datatype is created.
 //     All uses of the same type must refer to the same datatype pointer.
@@ -30,11 +30,11 @@ typedef struct datatype datatype;
 #define WRAP_BOOL(b) (&(bool) {b})
 #define WRAP_CHAR(c) (&(char) {c})
 
-// datatype_create(size, dup, dealloc, print, cmp) produces a datatype 
+// datatype_create(size, dup, dealloc, print, cmp) creates a datatype 
 //   with the given attributes (see datatype documentation above).
 // requires: dup, dealloc, print, cmp are not NULL
 // effects: allocates heap memory [caller must free with datatype_destroy]
-// note: returns NULL if allocation fails
+// note: Returns NULL if allocation fails
 // time: O(1)
 const datatype *datatype_create(size_t size,
                                 void *(*dup)(const void *),
@@ -58,12 +58,12 @@ bool datatype_equals(const datatype *a, const datatype *b);
 // time: O(1)
 size_t data_size(const datatype *type);
 
-// data_dup(item, type) produces a deep copy of item in the heap memory
+// data_dup(item, type) creates a deep copy of item in the heap memory
 //   using the dup method of type.
-// note: the returned pointer must be freed using data_dealloc, not free
 // requires: item and type are not NULL
 // effects: allocates heap memory
-// note: returns NULL if allocation fails
+// note: The returned pointer must be freed using data_dealloc, not free
+//       Returns NULL if allocation fails
 // time: [time of the dup method of type]
 void *data_dup(const void *item, const datatype *type);
 
@@ -87,27 +87,27 @@ void data_print(const void *item, const datatype *type);
 int data_cmp(const void *a, const void *b, const datatype *type);
 
 // int_type() produces a shared singleton int datatype ADT.
-// note: the returned pointer must not be freed
+// note: The returned pointer must not be freed
 // time: O(1)
 const datatype *int_type(void);
 
 // float_type() produces a shared singleton float datatype ADT.
-// note: the returned pointer must not be freed
+// note: The returned pointer must not be freed
 // time: O(1)
 const datatype *float_type(void);
 
 // double_type() produces a shared singleton double datatype ADT.
-// note: the returned pointer must not be freed
+// note: The returned pointer must not be freed
 // time: O(1)
 const datatype *double_type(void);
 
 // bool_type() produces a shared singleton bool datatype ADT.
-// note: the returned pointer must not be freed
+// note: The returned pointer must not be freed
 // time: O(1)
 const datatype *bool_type(void);
 
 // char_type() produces a shared singleton char datatype ADT.
-// note: the returned pointer must not be freed
+// note: The returned pointer must not be freed
 // time: O(1)
 const datatype *char_type(void);
 
