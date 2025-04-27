@@ -1,4 +1,63 @@
-This repository provides generic storage ADT modules in C.
+# Overview: `alist` Memory and Insertion Model
+
+An **alist** stores items in a dynamically resizable array.
+
+Each `alist` is associated with a specific **datatype**, defining a common type for all stored items.  
+Type-specific behaviors (duplication, comparison, printing, and deallocation) are handled through the **datatype** interface.
+
+---
+
+## Memory Model
+
+- Every item stored in an `alist` resides in separately allocated **heap memory**, either:
+  - **Duplicated** from the original (**deep copy**), or
+  - **Directly referenced** (**shallow copy** of the pointer).
+- Stored items are automatically **freed** when:
+  - Individually removed, or
+  - When the `alist` is destroyed.
+
+---
+
+## Insertion and Assignment Modes
+
+### 1. Deep Copying (default behavior)
+- The item is **duplicated** using the datatype's `dup` function.
+- **Stack-allocated (temporary)** variables are safely **deep-copied** into heap memory.
+- **Heap-allocated** objects are also **deep-copied**, ensuring:
+  - Modifying the original does **not** affect the stored item, and vice versa.
+- **Const** objects can be safely deep-copied, preserving immutability.
+
+**Functions**:  
+`alist_set`, `alist_append`, `alist_insert`, etc.
+
+---
+
+### 2. Shallow Copying (optional optimization)
+- A **shallow copy** of the pointer is stored **without duplication**.
+- **Faster** for large objects (no copying overhead).
+- **External mutation** of the object affects the stored alist item (and vice versa).
+- Shallow-copied items are **automatically freed** by `alist` at removal or destruction.
+
+**Functions**:  
+`alist_set_ref`, `alist_append_ref`, `alist_insert_ref`, etc.
+
+---
+
+## Safety Guidelines
+
+- **Prefer deep copying** unless optimization is necessary.
+- After deep copying, the **original object must be freed manually** by the client.
+- For **shallow copying**:
+  - The object must stay **valid** during the entire lifetime of the `alist`.
+  - It must be **heap-allocated** and properly compatible with the datatype's `destroy` function.
+- **NEVER** shallow-copy:
+  - **Stack-allocated** or **temporary** variables.
+  - **Const-qualified** pointers (discards constness and leads to undefined behavior).
+- Clients must **NOT manually free** shallow-copied items.
+
+
+
+
 
 # `alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
 
