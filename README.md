@@ -2,7 +2,7 @@
 
 An **alist** stores items in a dynamically resizable array.
 
-Each `alist` is associated with a specific **datatype**, defining a common type for all stored items.  
+Each `alist` is associated with a specific `datatype`, defining a common type for all stored items.  
 Type-specific behaviors (duplication, comparison, printing, and deallocation) are handled through the **datatype** interface.
 
 ---
@@ -59,7 +59,7 @@ Type-specific behaviors (duplication, comparison, printing, and deallocation) ar
 ---
 
 
-# Comparison: `alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
+## Comparison: `alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
 
 | Feature | **`alist`** | **GLib `GArray`** | **Java `ArrayList`** | **C++ `std::vector`** |
 |:--------|:----------------|:------------------|:---------------------|:---------------------|
