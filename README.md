@@ -2,7 +2,7 @@ This repository provides generic storage ADT modules in C.
 
 # `alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
 
-| Feature | **Your `alist`** | **GLib `GArray`** | **Java `ArrayList`** | **C++ `std::vector`** |
+| Feature | **`alist`** | **GLib `GArray`** | **Java `ArrayList`** | **C++ `std::vector`** |
 |:--------|:----------------|:------------------|:---------------------|:---------------------|
 | **Language** | C | C | Java | C++ |
 | **Data storage** | `void **` (generic pointers) | Raw data (byte array) | Typed objects | Typed objects (template) |
@@ -34,4 +34,3 @@ This repository provides generic storage ADT modules in C.
 | **Opaqueness of internal data** | ✅ Fully opaque | ❌ (fields public) | ✅ | ✅ |
 | **Flexibility to extend** | ✅ Easy (new methods) | ✅ Moderate | ❌ Hard (standard library) | ✅ Easy (extend templates) |
 | **Error rollback safety** | ✅ Fully covered | ❌ Partial | ✅ Exception rollback | ✅ Exception rollback |
-| **Documentation clarity** | ✅ Excellent | ✅ Good for GArray | ✅ JavaDoc excellent | ✅ STL docs excellent |
