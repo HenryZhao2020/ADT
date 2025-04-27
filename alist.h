@@ -6,10 +6,97 @@
 #include <stdbool.h>
 #include "datatype.h"
 
-// alist stores items in a dynamic array, making it efficient at
-//   selecting and searching items (if sorted).
-// note: all item arguments are deep-copied using the datatype’s dup method
-//       the caller retains ownership of the original item
+// An alist stores items in a dynamically resizable array.
+//
+// Each alist is associated with a specific datatype, defining a common type
+// for all stored items. Type-specific behaviors (duplication, comparison, 
+// printing, and deallocation) are handled through the datatype interface.
+//
+// Memory model:
+//   - Every item stored in an alist resides in separately allocated 
+//     heap memory, either duplicated from the original (deep copy) or 
+//     directly referenced (shallow copy of the pointer).
+//   - Stored items are automatically freed when individually removed 
+//     or when the alist is destroyed.
+//
+// Insertion and assignment modes:
+//
+// 1. Deep Copying (default behavior):
+//    - The item is duplicated using the datatype's 'dup' function.
+//    - Stack-allocated (temporary) variables are deep-copied into heap 
+//      memory, ensuring that their values remain safely stored in the alist 
+//      even after the original variables go out of scope.
+//    - Heap-allocated objects are also duplicated, ensuring that modifying 
+//      the original object does not affect the stored item, and vice versa.
+//    - Deep copying supports both const and non-const objects; a const 
+//      pointer can be safely passed to a deep-copying function, preserving 
+//      immutability of the original object.
+//    [Functions: alist_set, alist_append, alist_insert, etc.]
+//
+// 2. Shallow Copying (optional optimization):
+//    - A shallow copy of the pointer to the provided object is stored directly
+//      without duplication.
+//    - This avoids the overhead of deep copying, improving efficiency 
+//      for large heap-allocated objects.
+//    - Mutating the object externally after insertion will also affect the 
+//      corresponding alist item, and vice versa (via alist_get_mutable).
+//    - The alist will automatically free shallow-copied items at removal 
+//      or destruction.
+//    [Functions: alist_set_ref, alist_append_ref, alist_insert_ref, etc.]
+//
+// Safety guidelines:
+//   - If unsure, always prefer the default, deep-copying functions; 
+//     they are safe for both stack-allocated and heap-allocated objects, 
+//     and automatically manage the stored copy.
+//   - After inserting a heap-allocated object via a deep-copying function, 
+//     the client remains responsible for freeing the original object 
+//     separately to avoid memory leaks.
+//   - For shallow copying, the inserted object must remain valid for the 
+//     entire lifetime of the alist. It must be heap-allocated 
+//     and compatible with the datatype's 'destroy' function.
+//   - Do not use shallow-copying functions ('_ref' versions) with 
+//     stack-allocated, temporary, or otherwise short-lived objects, 
+//     as this leads to undefined behavior once the original object 
+//     leaves its stack frame.
+//   - Do not use shallow-copying functions ('_ref' versions) with 
+//     const-qualified pointers; inserting a const pointer via shallow copy 
+//     discards the const qualifier at runtime. If the item is later modified 
+//     (e.g., via alist_get_mutable), it results in undefined behavior 
+//     because the original object was intended to be immutable.
+//   - Clients must not manually free items inserted via shallow copying, 
+//     as the alist will automatically deallocate them.
+//
+// --- Examples ---
+//
+// Correct usage [stack-allocated variables deep-copied into alist]:
+//   void ex_func(void) {
+//     int temp = 10;
+//     alist_append(al, &temp);  // safely copied onto heap
+//     int *ptr = malloc(sizeof(*ptr));
+//     *ptr = 5;
+//     alist_append(al, ptr);    // ptr is deep-copied into heap memory
+//     free(ptr);                // client must free ptr to avoid memory leak
+//   }
+//
+// Wrong usage [stack-allocated variable shallow-copied]:
+//   void ex_func(void) {
+//     int temp = 10;
+//     alist_set_ref(al, 0, &temp);  // WRONG: temp will go out of scope!
+//   }
+//
+// Correct usage [heap-allocated object shallow-copied into alist]:
+//   void ex_func(void) {
+//     int *ptr = malloc(sizeof(*ptr));
+//     *ptr = 10;
+//     alist_set_ref(al, 0, ptr);  // shallow copy of pointer
+//   }
+//
+// Wrong usage [passing const object to shallow-copy insertion]:
+//   int *ptr = malloc(sizeof(*ptr));
+//   *ptr = 10;
+//   const int *const_ptr = ptr;
+//   // ERROR: alist_append_ref(al, const_ptr); // discards qualifier
+//
 typedef struct alist alist;
 
 // The return value if an item is not in alist (SIZE_MAX)
@@ -18,11 +105,14 @@ extern const size_t ALIST_INDEX_NOT_FOUND;
 // Method alias
 #define alist_length alist_size
 #define alist_add alist_append
+#define alist_add_ref alist_append_ref
 #define alist_add_all alist_append_all
+#define alist_add_all_ref alist_append_all_ref
 #define alist_insert_back alist_append
+#define alist_insert_back_ref alist_append_ref
 #define alist_find alist_index
 
-// alist_create(type) creates a new alist which stores items of 
+// alist_create(type) creates a new, empty alist which stores items of 
 //   the given type.
 // requires: type is not NULL
 // effects: allocates heap memory [caller must free with alist_destroy]
@@ -30,7 +120,17 @@ extern const size_t ALIST_INDEX_NOT_FOUND;
 // time: O(1)
 alist *alist_create(const datatype *type);
 
-// alist_destroy(al) frees al and its items from the memory.
+// alist_create_size(type, init_cap) creates a new alist of the given type
+//   which has the initial capacity init_cap.
+// requires: type is not NULL
+//           init_cap > 0
+// effects: allocates heap memory [caller must free with alist_destroy]
+// note: returns NULL if allocation fails
+// time: O(n)
+//   n = initial capacity of the alist = init_cap
+alist *alist_create_size(const datatype *type, size_t init_cap);
+
+// alist_destroy(al) frees al and its items from the heap memory.
 // effects: frees heap memory [al becomes invalid]
 // time: O(n * m)
 //   n = number of items in al
@@ -40,9 +140,10 @@ void alist_destroy(alist *al);
 // alist_clear(al) removes all items from al.
 // requires: al is not NULL
 // effects: modifies al, frees heap memory
-// note: alist_clear only deallocates the items in al
-//       call alist_destroy to completely destroy al
-//       call alist_reclaim to free the emptied storage of al
+// note: 
+//   - alist_clear only frees the items in al
+//   - call alist_destroy to completely destroy al
+//   - call alist_reclaim to free the emptied storage of al
 // time: O(n * m)
 //   n = number of items in al
 //   m = number of steps to free each item in al
@@ -97,40 +198,68 @@ size_t alist_capacity(const alist *al);
 // alist_reserve(al, n) ensures al can hold at least n items.
 // requires: al is not NULL
 // effects: allocates heap memory
-// note: returns true if enough memory can be reserved for al, 
-//       false otherwise; if al has more than n items, then 
-//       alist_reserve returns true and performs no action
+// note: 
+//   - returns true if enough memory can be reserved for al, 
+//     false otherwise
+//   - if al has more than n items, then alist_reserve returns true 
+//     and performs no action
 // time: O(n)
 bool alist_reserve(alist *al, size_t n);
 
 // alist_reclaim(al) sets al's capacity to al's current size.
 // requires: al is not NULL
 // effects: may modify al, may reallocate heap memory
-// note: returns true if memory reallocation for al is successful,
-//       false otherwise; if al's capacity is equal to al's size,
-//       alist_reclaim returns true and performs no action
+// note: 
+//   - returns true if memory reallocation for al is successful,
+//     false otherwise
+//   - if al's capacity is equal to al's size, then alist_reclaim 
+//     returns true and performs no action
 // time: O(n)
 bool alist_reclaim(alist *al);
 
-// alist_get(al, index) produces a pointer to the item at the given
-//   index position in al.
+// alist_get(al, index) produces a constant pointer to the item 
+//   at the given index position in al.
 // requires: al is not NULL and not empty
 //           0 <= index < alist_size(al)
+// note: 
+//   - alist_get protects the contents of al by returning a 
+//     constant pointer, preventing direct modification
+//   - call alist_get_mutable to modify an item in-place
 // time: O(1)
 const void *alist_get(const alist *al, size_t index);
 
-// alist_set(al, index, item) creates a deep copy of item at the given 
-//   index position in al.
+// alist_get_mutable(al, index) produces a mutable pointer to the item 
+//   at the given index position in al.
 // requires: al is not NULL and not empty
-//           item is not NULL
 //           0 <= index < alist_size(al)
-// effects: modifies al (replaces the old item), allocates heap memory
-// note: returns true if a deep copy of item is made successfully, 
+// warning: do not free the returned pointer, as doing so will result
+//          in a double free when removing the item or destroying al
+// time: O(1)
+void *alist_get_mutable(const alist *al, size_t index);
+
+// alist_set(al, index, item) replaces the old item at the given 
+//   index position in al with a deep copy of item.
+// requires: al is not NULL and not empty
+//           0 <= index < alist_size(al)
+//           item is not NULL
+// effects: modifies al [replaces the old item with a deep copy]
+// note: returns true if the deep copy of item is successful,
 //       false otherwise
 // time: O(n + m)
-//   n = number of steps to deallocate the old item
+//   n = number of steps to destroy the old item
 //   m = number of steps to copy item
 bool alist_set(alist *al, size_t index, const void *item);
+
+// alist_set_ref(al, index, item) replaces the old item at the given 
+//   index position in al with a shallow copy of item.
+// requires: al is not NULL and not empty
+//           0 <= index < alist_size(al)
+//           item is not NULL
+// effects: modifies al [replaces the old item pointer]
+// note: always returns true to align with the return type of alist_set
+// time: O(n)
+//   n = number of steps to free the old item
+bool alist_set_ref(alist *al, size_t index, void *item);
 
 // alist_swap(al, i, j) swaps the items at index positions i and j in al.
 // requires: al is not NULL and not empty
@@ -143,59 +272,109 @@ void alist_swap(alist *al, size_t i, size_t j);
 // alist_append(al, item) adds a deep copy of item to the back of al.
 // requires: al and item are not NULL
 // effects: modifies al, allocates heap memory
-// note: returns true if a deep copy of item is made successfully, 
+// note: returns true if al is resized and item is copied successfully,
 //       false otherwise
 // time: O(1) amortized + O(m)
 //   m = number of steps to copy item
 bool alist_append(alist *al, const void *item);
+
+// alist_append_ref(al, item) adds a shallow copy of item to the back of al.
+// requires: al and item are not NULL
+// effects: modifies al
+// note: returns true if al is resized successfully, false otherwise
+// time: O(1) amortized
+bool alist_append_ref(alist *al, void *item);
 
 // alist_append_all(al, src) adds deep copies of all items in src 
 //   to the back of al.
 // requires: al and src are not NULL
 //           al and src have the same type
 // effects: modifies al, allocates heap memory
-// note: returns true if deep copies of items in src are made successfully, 
+// note: returns true if all items in src are appended to al successfully, 
 //       false otherwise
 // time: O(1) amortized + O(n * m)
 //   n = number of items in src
 //   m = number of steps to copy each item in src
 bool alist_append_all(alist *al, const alist *src);
 
+// alist_append_all_ref(al, src) adds shallow copies of all items in src 
+//   to the back of al.
+// requires: al and src are not NULL
+//           al and src have the same type
+// effects: modifies al
+// note: returns true if all items in src are appended to al successfully, 
+//       false otherwise
+// time: O(1) amortized + O(n)
+//   n = number of items in src
+bool alist_append_all_ref(alist *al, const alist *src);
+
 // alist_insert(al, index, item) inserts a deep copy of item before the 
 //   given index position in al (shifting existing items to the right).
 // requires: al and item are not NULL
 //           0 <= index <= alist_size(al)
 // effects: modifies al, allocates heap memory
-// note: returns true if a deep copy of item is made successfully, 
+// note: returns true if al is resized and item is copied successfully,
 //       false otherwise
-// time: O(n + m)
-//   n = number of items shifted in al
+// time: O(1) amortized + O(n + m)
+//   n = number of items shifted in al = alist_size(al) - index
 //   m = number of steps to copy item
 bool alist_insert(alist *al, size_t index, const void *item);
+
+// alist_insert_ref(al, index, item) inserts a shallow copy of item before 
+//   the given index position in al (shifting existing items to the right).
+// requires: al and item are not NULL
+//           0 <= index <= alist_size(al)
+// effects: modifies al
+// note: returns true if al is resized successfully, false otherwise
+// time: O(1) amortized + O(n)
+//   n = number of items shifted in al = alist_size(al) - index
+bool alist_insert_ref(alist *al, size_t index, void *item);
 
 // alist_insert_front(al, item) inserts a deep copy of item to 
 //   the beginning of al.
 // requires: al and item are not NULL
 // effects: modifies al, allocates heap memory
-// note: returns true if a deep copy of item is made successfully, 
+// note: returns true if al is resized and item is copied successfully,
 //       false otherwise
-// time: O(n + m)
+// time: O(1) amortized + O(n + m)
 //   n = number of items shifted in al = alist_size(al)
 //   m = number of steps to copy item
 bool alist_insert_front(alist *al, const void *item);
 
-// alist_insert_all(al, index, src) inserts src before the given 
-//   index position in al.
+// alist_insert_front_ref(al, item) inserts a shallow copy of item to 
+//   the beginning of al.
+// requires: al and item are not NULL
+// effects: modifies al
+// note: returns true if al is resized successfully, false otherwise
+// time: O(1) amortized + O(n)
+//   n = number of items shifted in al = alist_size(al)
+bool alist_insert_front_ref(alist *al, void *item);
+
+// alist_insert_all(al, index, src) inserts deep copies of all items in src
+//   before the given index position in al.
 // requires: al and src are not NULL
 //           al and src have the same type
 //           0 <= index <= alist_size(al)
 // effects: modifies al, allocates heap memory
-// note: returns true if deep copies of items in src are made successfully, 
-//       false otherwise
-// time: O(n * m)
+// note: returns true if al is resized and items in src are copied to al 
+//       successfully, false otherwise
+// time: O(1) amortized + O(n * m + k)
 //   n = number of items in src
 //   m = number of steps to copy each item in src
+//   k = number of items shifted in al = alist_size(al) - index
 bool alist_insert_all(alist *al, size_t index, const alist *src);
+
+// alist_insert_all_ref(al, index, src) inserts shallow copies of all items 
+//   in src before the given index position in al.
+// requires: al and src are not NULL
+//           al and src have the same type
+//           0 <= index <= alist_size(al)
+// effects: modifies al
+// note: returns true if al is resized successfully, false otherwise
+// time: O(1) amortized + O(n + k)
+//   n = number of items in src
+//   k = number of items shifted in al = alist_size(al) - index
+bool alist_insert_all_ref(alist *al, size_t index, const alist *src);
 
 // alist_pop(al, index) removes the item at the given index position in al.
 // requires: al is not NULL and not empty
@@ -211,7 +390,7 @@ void alist_pop(alist *al, size_t index);
 //           item is not NULL
 // effects: modifies al, frees heap memory
 // note: returns the index position of item in al 
-//       and ALIST_INDEX_NOT_FOUND otherwise.
+//       and ALIST_INDEX_NOT_FOUND otherwise
 // time: O(n + m + k)
 //   n = number of items in al
 //   m = number of items shifted in al
@@ -223,7 +402,7 @@ size_t alist_remove(alist *al, const void *item);
 //           item is not NULL
 // effects: modifies al, frees heap memory
 // note: returns the index position of item in al 
-//       and ALIST_INDEX_NOT_FOUND otherwise.
+//       and ALIST_INDEX_NOT_FOUND otherwise
 // time: O(n + m + k)
 //   n = number of items in al
 //   m = number of items shifted in al
@@ -342,6 +521,8 @@ alist *alist_filter(const alist *al, bool (*pred)(const void *));
 // alist_map(al, map) applies map to all items in al.
 // requires: al and map are not NULL
 // effects: modifies al
+// note: alist_map modifies items in place, unlike alist_filter or 
+//       alist_slice which return new lists.
 // time: O(n * m)
 //   n = number of items in al
 //   m = number of steps to modify each item by map
@@ -353,12 +534,20 @@ void alist_map(alist *al, void (*map)(void *));
 //           len represents the length of arr [not asserted]
 //           type matches the types of items in arr [not asserted]
 // effects: allocates heap memory [caller must free with alist_destroy]
-// note: alist_map modifies items in place, unlike alist_filter or 
-//       alist_slice which return new lists.
 // time: O(n * m)
 //   n = len = number of items in arr
 //   m = number of steps to copy each item in arr
 alist *alist_from_array(const void **arr, size_t len, const datatype *type);
+
+// alist_from_array_ref(arr, len, type) creates an alist of the given type
+//   containing shallow copies of len items in arr.
+// requires: arr and type are not NULL
+//           len represents the length of arr [not asserted]
+//           type matches the types of items in arr [not asserted]
+// effects: allocates heap memory [caller must free with alist_destroy]
+// time: O(n)
+//   n = len = number of items in arr
+alist *alist_from_array_ref(void **arr, size_t len, const datatype *type);
 
 // alist_to_array(al) produces an array containing deep copies of 
 //   all items in al.
@@ -368,5 +557,13 @@ alist *alist_from_array(const void **arr, size_t len, const datatype *type);
 //   n = len = number of items in arr
 //   m = number of steps to copy each item in al
 void **alist_to_array(const alist *al);
+
+// alist_to_array_ref(al) produces an array containing shallow copies of 
+//   all items in al.
+// requires: al is not NULL
+// effects: allocates heap memory
+// time: O(n)
+//   n = len = number of items in arr
+void **alist_to_array_ref(const alist *al);
 
 #endif
