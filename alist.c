@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdint.h>
 #include <assert.h>
 #include "alist.h"
@@ -13,20 +12,26 @@ struct alist {
 };
 
 const size_t ALIST_INDEX_NOT_FOUND = SIZE_MAX;
-
-// The initial capacity of an empty alist
-static const int INIT_CAPACITY = 1;
+static const size_t DEFAULT_INIT_CAPACITY = 1;
 
 // Helper function declaration
 static void qsort_range(alist *al, size_t first, size_t last);
 
 alist *alist_create(const datatype *type) {
-  alist *al = malloc(sizeof(*al) * INIT_CAPACITY);
+  assert(type);
+  return alist_create_size(type, DEFAULT_INIT_CAPACITY);
+}
+
+alist *alist_create_size(const datatype *type, size_t init_cap) {
+  assert(type);
+  assert(init_cap);
+
+  alist *al = malloc(sizeof(*al));
   if (!al) {
     return NULL;
   }
 
-  al->data = malloc(sizeof(*al->data));
+  al->data = malloc(sizeof(*al->data) * init_cap);
   if (!al->data) {
     free(al);
     return NULL;
@@ -34,7 +39,7 @@ alist *alist_create(const datatype *type) {
   
   al->type = type;
   al->len = 0;
-  al->capacity = INIT_CAPACITY;
+  al->capacity = init_cap;
   return al;
 }
 
@@ -44,7 +49,7 @@ void alist_destroy(alist *al) {
   }
 
   for (size_t i = 0; i < al->len; ++i) {
-    data_dealloc(al->data[i], al->type);
+    data_destroy(al->data[i], al->type);
   }
   free(al->data);
   free(al);
@@ -53,7 +58,7 @@ void alist_destroy(alist *al) {
 void alist_clear(alist *al) {
   assert(al);
   for (size_t i = 0; i < al->len; ++i) {
-    data_dealloc(al->data[i], al->type);
+    data_destroy(al->data[i], al->type);
   }
   al->len = 0;
 }
@@ -176,6 +181,13 @@ const void *alist_get(const alist *al, size_t index) {
   return al->data[index];
 }
 
+void *alist_get_mutable(const alist *al, size_t index) {
+  assert(al);
+  assert(al->len > 0);
+  assert(index < al->len);
+  return al->data[index];
+}
+
 bool alist_set(alist *al, size_t index, const void *item) {
   assert(al);
   assert(al->len > 0);
@@ -187,8 +199,19 @@ bool alist_set(alist *al, size_t index, const void *item) {
     return false;
   }
 
-  data_dealloc(al->data[index], al->type);
+  data_destroy(al->data[index], al->type);
   al->data[index] = item_copy;
+  return true;
+}
+
+bool alist_set_ref(alist *al, size_t index, void *item) {
+  assert(al);
+  assert(al->len > 0);
+  assert(item);
+  assert(index < al->len);
+
+  data_destroy(al->data[index], al->type);
+  al->data[index] = item;
   return true;
 }
 
@@ -227,6 +250,25 @@ bool alist_append(alist *al, const void *item) {
   return true;
 }
 
+bool alist_append_ref(alist *al, void *item) {
+  assert(al);
+  assert(item);
+
+  if (al->len == al->capacity) {
+    size_t new_capacity = al->capacity * 2;
+    void **new_data = realloc(al->data,  sizeof(*al->data) * new_capacity);
+    if (!new_data) {
+      return false;
+    }
+    al->data = new_data;
+    al->capacity = new_capacity;
+  }
+
+  al->data[al->len] = item;
+  ++al->len;
+  return true;
+}
+
 bool alist_append_all(alist *al, const alist *src) {
   assert(al);
   assert(src);
@@ -234,6 +276,19 @@ bool alist_append_all(alist *al, const alist *src) {
 
   for (size_t i = 0; i < src->len; ++i) {
     if (!alist_append(al, src->data[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool alist_append_all_ref(alist *al, const alist *src) {
+  assert(al);
+  assert(src);
+  assert(datatype_equals(src->type, al->type));
+
+  for (size_t i = 0; i < src->len; ++i) {
+    if (!alist_append_ref(al, src->data[i])) {
       return false;
     }
   }
@@ -269,10 +324,40 @@ bool alist_insert(alist *al, size_t index, const void *item) {
   return true;
 }
 
+bool alist_insert_ref(alist *al, size_t index, void *item) {
+  assert(al);
+  assert(item);
+  assert(index <= al->len);
+  
+  if (al->len == al->capacity) {
+    size_t new_capacity = al->capacity * 2;
+    void **new_data = realloc(al->data,  sizeof(*al->data) * new_capacity);
+    if (!new_data) {
+      return false;
+    }
+    al->data = new_data;
+    al->capacity = new_capacity;
+  }
+
+  for (size_t i = al->len; i > index; --i) {
+    al->data[i] = al->data[i - 1];
+  }
+
+  al->data[index] = item;
+  ++al->len;
+  return true;
+}
+
 bool alist_insert_front(alist *al, const void *item) {
   assert(al);
   assert(item);
   return alist_insert(al, 0, item);
+}
+
+bool alist_insert_front_ref(alist *al, void *item) {
+  assert(al);
+  assert(item);
+  return alist_insert_ref(al, 0, item);
 }
 
 bool alist_insert_all(alist *al, size_t index, const alist *src) {
@@ -295,7 +380,7 @@ bool alist_insert_all(alist *al, size_t index, const alist *src) {
     if (!al->data[index + i]) {
       // Rollback inserted items
       for (size_t j = 0; j < i; ++j) {
-        data_dealloc(al->data[index + j], al->type);
+        data_destroy(al->data[index + j], al->type);
       }
       // Restore shifted items
       for (size_t j = index; j < al->len; ++j) {
@@ -309,12 +394,35 @@ bool alist_insert_all(alist *al, size_t index, const alist *src) {
   return true;
 }
 
+bool alist_insert_all_ref(alist *al, size_t index, const alist *src) {
+  assert(al);
+  assert(src);
+  assert(datatype_equals(src->type, al->type));
+  assert(index <= al->len);
+
+  if (!alist_reserve(al, al->len + src->len)) {
+    return false;
+  }
+
+  // Shift elements backwards to make room
+  for (size_t i = al->len; i-- > index;) {
+    al->data[i + src->len] = al->data[i];
+  }
+
+  for (size_t i = 0; i < src->len; ++i) {
+    al->data[index + i] = src->data[i];
+  }
+
+  al->len += src->len;
+  return true;
+}
+
 void alist_pop(alist *al, size_t index) {
   assert(al);
   assert(al->len > 0);
   assert(index < al->len);
 
-  data_dealloc(al->data[index], al->type);
+  data_destroy(al->data[index], al->type);
   for (size_t i = index; i < al->len - 1; ++i) {
     al->data[i] = al->data[i + 1];
   }
@@ -381,7 +489,7 @@ void alist_remove_range(alist *al, size_t from_index, size_t to_index) {
 
   size_t range = to_index - from_index;
   for (size_t i = from_index; i < to_index; ++i) {
-    data_dealloc(al->data[i], al->type);
+    data_destroy(al->data[i], al->type);
   }
   for (size_t i = to_index; i < al->len; ++i) {
     al->data[i - range] = al->data[i];
@@ -533,12 +641,40 @@ alist *alist_from_array(const void **arr, size_t len, const datatype *type) {
   assert(type);
 
   alist *al = alist_create(type);
-  if (!al || !alist_reserve(al, len)) {
+  if (!al) {
+    return NULL;
+  }
+
+  if (!alist_reserve(al, len)) {
+    alist_destroy(al);
     return NULL;
   }
 
   for (size_t i = 0; i < len; ++i) {
     if (!alist_append(al, arr[i])) {
+      alist_destroy(al);
+      return NULL;
+    }
+  }
+  return al;
+}
+
+alist *alist_from_array_ref(void **arr, size_t len, const datatype *type) {
+  assert(arr);
+  assert(type);
+
+  alist *al = alist_create(type);
+  if (!al) {
+    return NULL;
+  }
+  
+  if (!alist_reserve(al, len)) {
+    alist_destroy(al);
+    return NULL;
+  }
+
+  for (size_t i = 0; i < len; ++i) {
+    if (!alist_append_ref(al, arr[i])) {
       alist_destroy(al);
       return NULL;
     }
@@ -558,11 +694,25 @@ void **alist_to_array(const alist *al) {
     arr[i] = data_dup(al->data[i], al->type);
     if (!arr[i]) {
       for (size_t j = 0; j < i; ++j) {
-        data_dealloc(arr[j], al->type);
+        data_destroy(arr[j], al->type);
       }
       free(arr);
       return NULL;
     }
+  }
+  return arr;
+}
+
+void **alist_to_array_ref(const alist *al) {
+  assert(al);
+
+  void **arr = malloc(sizeof(void *) * al->len);
+  if (!arr) {
+    return NULL;
+  }
+
+  for (size_t i = 0; i < al->len; ++i) {
+    arr[i] = al->data[i];
   }
   return arr;
 }
