@@ -56,10 +56,10 @@ Type-specific behaviors (duplication, comparison, printing, and deallocation) ar
 - Clients must **NOT manually free** shallow-copied items.
 
 
+---
 
 
-
-# `alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
+# Comparison: `alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
 
 | Feature | **`alist`** | **GLib `GArray`** | **Java `ArrayList`** | **C++ `std::vector`** |
 |:--------|:----------------|:------------------|:---------------------|:---------------------|
