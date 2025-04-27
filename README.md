@@ -1,6 +1,6 @@
 This repository provides generic storage ADT modules in C.
 
-# `alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
+`alist` vs `glib GArray` vs `Java ArrayList` vs `C++ std::vector`
 
 | Feature | **`alist`** | **GLib `GArray`** | **Java `ArrayList`** | **C++ `std::vector`** |
 |:--------|:----------------|:------------------|:---------------------|:---------------------|
