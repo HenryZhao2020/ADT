@@ -24,6 +24,7 @@ typedef struct datatype datatype;
 #define WRAP_INT(i) (&(int) {i})
 #define WRAP_FLOAT(f) (&(float) {f})
 #define WRAP_DOUBLE(d) (&(double) {d})
+#define WRAP_LONG(l) (&(long) {l})
 #define WRAP_BOOL(b) (&(bool) {b})
 #define WRAP_CHAR(c) (&(char) {c})
 
@@ -92,6 +93,7 @@ int data_cmp(const void *a, const void *b, const datatype *type);
 const datatype *int_type(void);
 const datatype *float_type(void);
 const datatype *double_type(void);
+const datatype *long_type(void);
 const datatype *bool_type(void);
 const datatype *char_type(void);
 const datatype *string_type(void);
