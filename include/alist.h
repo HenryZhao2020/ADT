@@ -20,8 +20,8 @@
 //     the alist duplicates them internally.
 //   - Stored items are automatically freed when individually removed or
 //     when the alist is destroyed.
-//   - Clients remain responsible for freeing the original objects if 
-//     they were heap-allocated, to avoid memory leaks.
+//   - Clients are responsible for freeing the original heap-allocated 
+//     objects after insertion to avoid memory leaks.
 //
 // Example:
 //   int temp = 10;
@@ -32,6 +32,7 @@
 //   alist_append(al, ptr);    // Deep-copied into alist
 //   free(ptr);                // Client must free original pointer
 //
+// See 'examples/demo_alist.c' for a full demonstration of alist usage.
 typedef struct alist alist;
 
 // The return value if an item is not in alist (SIZE_MAX)
