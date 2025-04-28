@@ -16,7 +16,7 @@ Type-specific behaviors (duplication, comparison, printing, and deallocation) ar
 
 ---
 
-## Example Usage (examples/demo_alist.c)
+## Example Usage (examples/demo_alist_int.c)
 
 ```c
 // Demonstration of alist usage.

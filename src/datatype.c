@@ -16,6 +16,7 @@ struct datatype {
 static void print_int(const void *item);
 static void print_float(const void *item);
 static void print_double(const void *item);
+static void print_long(const void *item);
 static void print_bool(const void *item);
 static void print_char(const void *item);
 
@@ -44,12 +45,14 @@ static int cmp_string(const void *a, const void *b);
 DEFINE_DUP(int)
 DEFINE_DUP(float)
 DEFINE_DUP(double)
+DEFINE_DUP(long)
 DEFINE_DUP(bool)
 DEFINE_DUP(char)
 
 DEFINE_CMP(int)
 DEFINE_CMP(float)
 DEFINE_CMP(double)
+DEFINE_CMP(long)
 DEFINE_CMP(bool)
 DEFINE_CMP(char)
 
@@ -151,6 +154,17 @@ const datatype *double_type(void) {
   return &_double_type;
 }
 
+const datatype *long_type(void) {
+  static const datatype _double_type = {
+    .size = sizeof(long),
+    .dup = dup_long,
+    .destroy = free,
+    .print = print_long,
+    .cmp = cmp_long,
+  };
+  return &_double_type;
+}
+
 const datatype *bool_type(void) {
   static const datatype _bool_type = {
     .size = sizeof(bool),
@@ -201,6 +215,12 @@ static void print_double(const void *item) {
   assert(item);
   const double *double_ptr = item;
   printf("%.6g", *double_ptr);
+}
+
+static void print_long(const void *item) {
+  assert(item);
+  const long *long_ptr = item;
+  printf("%ld", *long_ptr);
 }
 
 static void print_bool(const void *item) {
