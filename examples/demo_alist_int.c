@@ -1,29 +1,3 @@
-## Overview
-
-An alist stores items in a dynamically resizable array,  
-with all items deeply copied into heap memory.
-
-Each alist is associated with a specific **datatype**, defining a common type  
-for all stored items. Type-specific behaviors (duplication, comparison,  
-printing, and deallocation) are handled through the **datatype interface**.
-
----
-
-## Memory Model
-
-- All inserted items are deeply copied into separately allocated heap memory.
-- Stack-allocated or heap-allocated objects are both safe to insert;  
-  the alist duplicates them internally.
-- Stored items are automatically freed when individually removed or  
-  when the alist is destroyed.
-- Clients are responsible for freeing the original heap-allocated objects  
-  after insertion to avoid memory leaks.
-
----
-
-## Example Usage (examples/demo_alist_int.c)
-
-```c
 // Demonstration of alist usage.
 
 #include <stdlib.h>
