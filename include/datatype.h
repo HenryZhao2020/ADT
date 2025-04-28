@@ -26,7 +26,6 @@ typedef struct datatype datatype;
 #define WRAP_DOUBLE(d) (&(double) {d})
 #define WRAP_BOOL(b) (&(bool) {b})
 #define WRAP_CHAR(c) (&(char) {c})
-#define WRAP_STRING(s) ((void *)(s))
 
 // datatype_create(size, dup, destroy, print, cmp) creates a datatype 
 //   with the given attributes (see datatype documentation above).
@@ -83,15 +82,18 @@ void data_print(const void *value, const datatype *type);
 // time: [time of the cmp method of type]
 int data_cmp(const void *a, const void *b, const datatype *type);
 
+// -----
 // The following methods each produce a shared singleton datatype ADT
 //   for common built-in C types.
 // note: the returned pointer must not be freed
 // time: O(1)
+// -----
 
 const datatype *int_type(void);
 const datatype *float_type(void);
 const datatype *double_type(void);
 const datatype *bool_type(void);
 const datatype *char_type(void);
+const datatype *string_type(void);
 
 #endif

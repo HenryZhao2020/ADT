@@ -19,6 +19,10 @@ static void print_double(const void *item);
 static void print_bool(const void *item);
 static void print_char(const void *item);
 
+static void *dup_string(const void *item);
+static void print_string(const void *item);
+static int cmp_string(const void *a, const void *b);
+
 #define DEFINE_DUP(type) \
   static void *dup_##type(const void *value) { \
     assert(value);  \
@@ -169,6 +173,17 @@ const datatype *char_type(void) {
   return &_char_type;
 }
 
+const datatype *string_type(void) {
+  static const datatype _string_type = {
+    .size = sizeof(char *),
+    .dup = dup_string,
+    .destroy = free,
+    .print = print_string,
+    .cmp = cmp_string,
+  };
+  return &_string_type;
+}
+
 // Helper function implementation
 static void print_int(const void *item) {
   assert(item);
@@ -198,4 +213,30 @@ static void print_char(const void *item) {
   assert(item);
   const char *char_ptr = item;
   printf("%c", *char_ptr);
+}
+
+static void *dup_string(const void *item) {
+  assert(item);
+
+  const char *str_ptr = item;
+  size_t item_len = strlen(str_ptr);
+
+  char *dup_str = malloc(sizeof(char) * (item_len + 1));
+  strcpy(dup_str, str_ptr);
+  dup_str[item_len] = '\0';
+  return dup_str;
+}
+
+static void print_string(const void *item) {
+  assert(item);
+  const char *str_ptr = item;
+  printf("%s", str_ptr);
+}
+
+static int cmp_string(const void *a, const void *b) {
+  assert(a);
+  assert(b);
+  const char *a_ptr = a;
+  const char *b_ptr = b;
+  return strcmp(a_ptr, b_ptr);
 }

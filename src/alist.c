@@ -204,17 +204,6 @@ bool alist_set(alist *al, size_t index, const void *item) {
   return true;
 }
 
-bool alist_set_ref(alist *al, size_t index, void *item) {
-  assert(al);
-  assert(al->len > 0);
-  assert(item);
-  assert(index < al->len);
-
-  data_destroy(al->data[index], al->type);
-  al->data[index] = item;
-  return true;
-}
-
 void alist_swap(alist *al, size_t i, size_t j) {
   assert(al);
   assert(al->len > 0);
@@ -250,25 +239,6 @@ bool alist_append(alist *al, const void *item) {
   return true;
 }
 
-bool alist_append_ref(alist *al, void *item) {
-  assert(al);
-  assert(item);
-
-  if (al->len == al->capacity) {
-    size_t new_capacity = al->capacity * 2;
-    void **new_data = realloc(al->data,  sizeof(*al->data) * new_capacity);
-    if (!new_data) {
-      return false;
-    }
-    al->data = new_data;
-    al->capacity = new_capacity;
-  }
-
-  al->data[al->len] = item;
-  ++al->len;
-  return true;
-}
-
 bool alist_append_all(alist *al, const alist *src) {
   assert(al);
   assert(src);
@@ -276,19 +246,6 @@ bool alist_append_all(alist *al, const alist *src) {
 
   for (size_t i = 0; i < src->len; ++i) {
     if (!alist_append(al, src->data[i])) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool alist_append_all_ref(alist *al, const alist *src) {
-  assert(al);
-  assert(src);
-  assert(datatype_equals(src->type, al->type));
-
-  for (size_t i = 0; i < src->len; ++i) {
-    if (!alist_append_ref(al, src->data[i])) {
       return false;
     }
   }
@@ -324,40 +281,10 @@ bool alist_insert(alist *al, size_t index, const void *item) {
   return true;
 }
 
-bool alist_insert_ref(alist *al, size_t index, void *item) {
-  assert(al);
-  assert(item);
-  assert(index <= al->len);
-  
-  if (al->len == al->capacity) {
-    size_t new_capacity = al->capacity * 2;
-    void **new_data = realloc(al->data,  sizeof(*al->data) * new_capacity);
-    if (!new_data) {
-      return false;
-    }
-    al->data = new_data;
-    al->capacity = new_capacity;
-  }
-
-  for (size_t i = al->len; i > index; --i) {
-    al->data[i] = al->data[i - 1];
-  }
-
-  al->data[index] = item;
-  ++al->len;
-  return true;
-}
-
 bool alist_insert_front(alist *al, const void *item) {
   assert(al);
   assert(item);
   return alist_insert(al, 0, item);
-}
-
-bool alist_insert_front_ref(alist *al, void *item) {
-  assert(al);
-  assert(item);
-  return alist_insert_ref(al, 0, item);
 }
 
 bool alist_insert_all(alist *al, size_t index, const alist *src) {
@@ -388,29 +315,6 @@ bool alist_insert_all(alist *al, size_t index, const alist *src) {
       }
       return false;
     }
-  }
-
-  al->len += src->len;
-  return true;
-}
-
-bool alist_insert_all_ref(alist *al, size_t index, const alist *src) {
-  assert(al);
-  assert(src);
-  assert(datatype_equals(src->type, al->type));
-  assert(index <= al->len);
-
-  if (!alist_reserve(al, al->len + src->len)) {
-    return false;
-  }
-
-  // Shift elements backwards to make room
-  for (size_t i = al->len; i-- > index;) {
-    al->data[i + src->len] = al->data[i];
-  }
-
-  for (size_t i = 0; i < src->len; ++i) {
-    al->data[index + i] = src->data[i];
   }
 
   al->len += src->len;
@@ -659,29 +563,6 @@ alist *alist_from_array(const void **arr, size_t len, const datatype *type) {
   return al;
 }
 
-alist *alist_from_array_ref(void **arr, size_t len, const datatype *type) {
-  assert(arr);
-  assert(type);
-
-  alist *al = alist_create(type);
-  if (!al) {
-    return NULL;
-  }
-  
-  if (!alist_reserve(al, len)) {
-    alist_destroy(al);
-    return NULL;
-  }
-
-  for (size_t i = 0; i < len; ++i) {
-    if (!alist_append_ref(al, arr[i])) {
-      alist_destroy(al);
-      return NULL;
-    }
-  }
-  return al;
-}
-
 void **alist_to_array(const alist *al) {
   assert(al);
 
@@ -699,20 +580,6 @@ void **alist_to_array(const alist *al) {
       free(arr);
       return NULL;
     }
-  }
-  return arr;
-}
-
-void **alist_to_array_ref(const alist *al) {
-  assert(al);
-
-  void **arr = malloc(sizeof(void *) * al->len);
-  if (!arr) {
-    return NULL;
-  }
-
-  for (size_t i = 0; i < al->len; ++i) {
-    arr[i] = al->data[i];
   }
   return arr;
 }
