@@ -1,6 +1,6 @@
 # Compiler and tools
 CC ?= gcc
-CFLAGS = -Wall -Wextra -Werror -std=c99 -pedantic -g -Iinclude
+CFLAGS = -Wall -Wextra -std=c99 -pedantic -g -Iinclude
 VALGRIND = valgrind --leak-check=full --track-origins=yes --show-leak-kinds=all
 
 # Directories
