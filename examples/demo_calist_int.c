@@ -47,7 +47,7 @@ static void multiply(const calist *al, void *item, const void *args) {
 
 int main(void) {
   // Create an integer calist ['int_type' is included in datatype.h]
-  calist *al = calist_create_size(int_type(), 1);
+  calist *al = calist_create(int_type());
   
   // Append integers to the back of al
   calist_append_stack(al);
