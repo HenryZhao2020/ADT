@@ -3,14 +3,14 @@
 #ifndef CALIST_H
 #define CALIST_H
 
-#include "datatype.h"
+#include "ctype.h"
 
 // A calist stores items in a dynamically resizable array,
 // with all items deeply copied into heap memory.
 //
-// Each calist is associated with a specific datatype, defining a common type
+// Each calist is associated with a specific ctype, defining a common type
 // for all stored items. Type-specific behaviors (duplication, comparison,
-// printing, and deallocation) are handled through the datatype interface.
+// printing, and deallocation) are handled through the ctype interface.
 //
 // Memory model:
 //   - All inserted items are deeply copied into separately allocated 
@@ -76,14 +76,14 @@ extern const size_t CALIST_INDEX_NOT_FOUND;
 //   the given type.
 // requires: type is not NULL
 // effects: allocates heap memory [caller must free with calist_destroy]
-calist *calist_create(const datatype *type);
+calist *calist_create(const ctype *type);
 
 // calist_create_size(type, init_cap) creates an empty calist of the
 //   given type with an initial capacity of init_cap.
 // requires: type is not NULL
 //           init_cap > 0
 // effects: allocates heap memory [caller must free with calist_destroy]
-calist *calist_create_size(const datatype *type, size_t init_cap);
+calist *calist_create_size(const ctype *type, size_t init_cap);
 
 // calist_destroy(al) frees al and its items from the heap memory.
 // effects: frees heap memory [al becomes invalid]
@@ -109,14 +109,14 @@ calist *calist_dup(const calist *al);
 // effects: produces output
 void calist_print(const calist *al);
 
-// calist_equals(a, b) produces true if a and b have identical size, type,
-//   and items; false otherwise.
-// requires: a and b are not NULL
-bool calist_equals(const calist *a, const calist *b);
+// calist_equals(l1, l2) produces true if l1 and l2 have identical size, 
+//   type, and items; false otherwise.
+// requires: l1 and l2 are not NULL
+bool calist_equals(const calist *l1, const calist *l2);
 
-// calist_type(al) produces the datatype of al.
+// calist_type(al) produces the ctype of al.
 // requires: al is not NULL
-const datatype *calist_type(const calist *al);
+const ctype *calist_type(const calist *al);
 
 // calist_size(al) produces the number of items in al.
 // requires: al is not NULL

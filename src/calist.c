@@ -1,26 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <assert.h>
 #include "calist.h"
-
-#define ASSERT_MSG(cond, msg) do { \
-  if (!(cond)) { \
-    fprintf(stderr, "[calist assertion failed] %s:%d: %s\n", \
-            __FILE__, __LINE__, (msg)); \
-    abort(); \
-  } \
-} while (0)
-
-#define CALIST_MEM_ERR(msg) do { \
-  fprintf(stderr, "[calist memory error] %s:%d: %s\n", \
-          __FILE__, __LINE__, (msg)); \
-  exit(EXIT_FAILURE); \
-} while (0)
+#include "cerror.h"
 
 struct calist {
   void **data;
-  const datatype *type;
+  const ctype *type;
   size_t size;
   size_t capacity;
 };
@@ -28,31 +14,40 @@ struct calist {
 const size_t CALIST_INDEX_NOT_FOUND = SIZE_MAX;
 
 static const size_t DEFAULT_INIT_CAPACITY = 1;
-static const char *CALIST_ASSERT_NULL = "calist cannot be NULL!";
-static const char *CALIST_ASSERT_EMPTY = "calist cannot be empty!";
-static const char *ITEM_ASSERT_NULL = "item cannot be NULL!";
-static const char *INDEX_ASSERT_BOUNDED = "index must be less than the size of calist!";
+
+static const char *ASSERT_CALIST_NOT_EMPTY 
+  = "calist cannot be empty!";
+static const char *ASSERT_CALIST_SAME_TYPE 
+  = "calist must have the same type!";
+static const char *ASSERT_INDEX_BOUNDED 
+  = "index must be less than the size of calist!";
+static const char *ASSERT_INDEX_BOUNDED_INCLUSIVE 
+  = "index must not exceed the size of calist!";
+static const char *ASSERT_INDEX_END_AFTER_START
+  = "The ending index cannot be less than the starting index!";
+
+static const char *ERROR_ITEM_DUP = "Failed to duplicate item!";
 
 // Helper function declaration
 static void qsort_range(calist *al, size_t first, size_t last);
 
-calist *calist_create(const datatype *type) {
-  ASSERT_MSG(type, "datatype cannot be NULL!");
+calist *calist_create(const ctype *type) {
+  ASSERT_NOT_NULL(type, NULL);
   return calist_create_size(type, DEFAULT_INIT_CAPACITY);
 }
 
-calist *calist_create_size(const datatype *type, size_t init_cap) {
-  ASSERT_MSG(type, "datatype cannot be NULL!");
+calist *calist_create_size(const ctype *type, size_t init_cap) {
+  ASSERT_NOT_NULL(type, NULL);
   ASSERT_MSG(init_cap, "The initial capacity of calist cannot be zero!");
 
   calist *al = malloc(sizeof(*al));
   if (!al) {
-    CALIST_MEM_ERR("Failed to create calist!");
+    ALLOC_ERROR("calist");
   }
 
   al->data = malloc(sizeof(*al->data) * init_cap);
   if (!al->data) {
-    CALIST_MEM_ERR("Failed to create calist with the given size!");
+    ALLOC_ERROR("calist with the given capacity");
   }
   
   al->type = type;
@@ -72,7 +67,7 @@ void calist_destroy(calist *al) {
 }
 
 void calist_clear(calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   for (size_t i = 0; i < al->size; ++i) {
     data_destroy(al->data[i], al->type);
@@ -81,22 +76,22 @@ void calist_clear(calist *al) {
 }
 
 calist *calist_dup(const calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   calist *al_copy = malloc(sizeof(*al_copy));
   if (!al_copy) {
-    CALIST_MEM_ERR("Failed to create calist!");
+    ALLOC_ERROR("calist");
   }
 
   al_copy->data = malloc(sizeof(*al_copy->data) * al->capacity);
   if (!al_copy->data) {
-    CALIST_MEM_ERR("Failed to create calist with the given size!");
+    ALLOC_ERROR("calist with the given capacity");
   }
 
   for (size_t i = 0; i < al->size; ++i) {
     void *item = data_dup(al->data[i], al->type);
     if (!item) {
-      CALIST_MEM_ERR("Failed to duplicate item!");
+      FATAL_ERROR(ERROR_ITEM_DUP);
     }
     al_copy->data[i] = item;
   }
@@ -108,7 +103,7 @@ calist *calist_dup(const calist *al) {
 }
 
 void calist_print(const calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   printf("[");
   for (size_t i = 0; i < al->size; ++i) {
@@ -120,50 +115,50 @@ void calist_print(const calist *al) {
   printf("]\n");
 }
 
-bool calist_equals(const calist *a, const calist *b) {
-  ASSERT_MSG(a, CALIST_ASSERT_NULL);
-  ASSERT_MSG(b, CALIST_ASSERT_NULL);
+bool calist_equals(const calist *l1, const calist *l2) {
+  ASSERT_NOT_NULL(l1, "The first calist");
+  ASSERT_NOT_NULL(l2, "The second calist");
 
-  if (a->size != b->size || !datatype_equals(a->type, b->type)) {
+  if (l1->size != l2->size || !ctype_equals(l1->type, l2->type)) {
     return false;
   }
 
-  for (size_t i = 0; i < a->size; ++i) {
-    if (data_cmp(a->data[i], b->data[i], a->type)) {
+  for (size_t i = 0; i < l1->size; ++i) {
+    if (data_cmp(l1->data[i], l2->data[i], l1->type)) {
       return false;
     }
   }
   return true;
 }
 
-const datatype *calist_type(const calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+const ctype *calist_type(const calist *al) {
+  ASSERT_NOT_NULL(al, NULL);
   return al->type;
 }
 
 size_t calist_size(const calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
   return al->size;
 }
 
 bool calist_empty(const calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
   return (al->size == 0);
 }
 
 size_t calist_capacity(const calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
   return al->capacity;
 }
 
 void calist_reserve(calist *al, size_t n) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   if (n <= al->capacity) return;
 
   void **new_data = realloc(al->data, sizeof(void *) * n);
   if (!new_data) {
-    CALIST_MEM_ERR("Failed to reserve the given capacity!");
+    FATAL_ERROR("Failed to reserve the given capacity!");
   }
 
   al->data = new_data;
@@ -171,13 +166,13 @@ void calist_reserve(calist *al, size_t n) {
 }
 
 void calist_reclaim(calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
   
   if (al->size == al->capacity) return;
   
   void **new_data = realloc(al->data, sizeof(void *) * al->size);
   if (!new_data) {
-    CALIST_MEM_ERR("Failed to reclaim the unused storage!");
+    FATAL_ERROR("Failed to reclaim the unused storage!");
   }
 
   al->data = new_data;
@@ -185,28 +180,28 @@ void calist_reclaim(calist *al) {
 }
 
 const void *calist_get(const calist *al, size_t index) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(index < al->size, INDEX_ASSERT_BOUNDED);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_MSG(index < al->size, ASSERT_INDEX_BOUNDED);
   return al->data[index];
 }
 
 void *calist_get_mutable(const calist *al, size_t index) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(index < al->size, INDEX_ASSERT_BOUNDED);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_MSG(index < al->size, ASSERT_INDEX_BOUNDED);
   return al->data[index];
 }
 
 void calist_set(calist *al, size_t index, const void *new_item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(index < al->size, INDEX_ASSERT_BOUNDED);
-  ASSERT_MSG(new_item, ITEM_ASSERT_NULL); 
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_MSG(index < al->size, ASSERT_INDEX_BOUNDED);
+  ASSERT_NOT_NULL(new_item, "The new item");
 
   void *item_copy = data_dup(new_item, al->type);
   if (!item_copy) {
-    CALIST_MEM_ERR("Failed to duplicate item!");
+    FATAL_ERROR(ERROR_ITEM_DUP);
   }
 
   data_destroy(al->data[index], al->type);
@@ -214,10 +209,10 @@ void calist_set(calist *al, size_t index, const void *new_item) {
 }
 
 void calist_swap(calist *al, size_t i, size_t j) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(i < al->size, INDEX_ASSERT_BOUNDED);
-  ASSERT_MSG(j < al->size, INDEX_ASSERT_BOUNDED);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_MSG(i < al->size, ASSERT_INDEX_BOUNDED);
+  ASSERT_MSG(j < al->size, ASSERT_INDEX_BOUNDED);
 
   void *temp = al->data[i];
   al->data[i] = al->data[j];
@@ -225,12 +220,12 @@ void calist_swap(calist *al, size_t i, size_t j) {
 }
 
 void calist_append(calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
 
   void *item_copy = data_dup(item, al->type);
   if (!item_copy) {
-    CALIST_MEM_ERR("Failed to duplicate item!");
+    FATAL_ERROR(ERROR_ITEM_DUP);
   }
 
   if (al->size == al->capacity) {
@@ -241,10 +236,9 @@ void calist_append(calist *al, const void *item) {
 }
 
 void calist_append_all(calist *al, const calist *src) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(src, CALIST_ASSERT_NULL);
-  ASSERT_MSG(datatype_equals(src->type, al->type),
-             "calists cannot have different types!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(src, NULL);
+  ASSERT_MSG(ctype_equals(src->type, al->type), ASSERT_CALIST_SAME_TYPE);
 
   for (size_t i = 0; i < src->size; ++i) {
     calist_append(al, src->data[i]);
@@ -252,13 +246,13 @@ void calist_append_all(calist *al, const calist *src) {
 }
 
 void calist_insert(calist *al, size_t index, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
-  ASSERT_MSG(index <= al->size, "index must not exceed the size of calist!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
+  ASSERT_MSG(index <= al->size, ASSERT_INDEX_BOUNDED_INCLUSIVE);
 
   void *item_copy = data_dup(item, al->type);
   if (!item_copy) {
-    CALIST_MEM_ERR("Failed to duplicate item!");
+    FATAL_ERROR(ERROR_ITEM_DUP);
   }
 
   if (al->size == al->capacity) {
@@ -272,17 +266,16 @@ void calist_insert(calist *al, size_t index, const void *item) {
 }
 
 void calist_insert_front(calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
   calist_insert(al, 0, item);
 }
 
 void calist_insert_all(calist *al, size_t index, const calist *src) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(src, CALIST_ASSERT_NULL);
-  ASSERT_MSG(datatype_equals(src->type, al->type),
-             "calists cannot have different types!");
-  ASSERT_MSG(index <= al->size, "index must not exceed the size of calist!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(src, NULL);
+  ASSERT_MSG(ctype_equals(src->type, al->type), ASSERT_CALIST_SAME_TYPE);
+  ASSERT_MSG(index <= al->size, ASSERT_INDEX_BOUNDED_INCLUSIVE);
 
   calist_reserve(al, al->size + src->size);
   // Shift elements backwards to make room
@@ -293,16 +286,16 @@ void calist_insert_all(calist *al, size_t index, const calist *src) {
   for (size_t i = 0; i < src->size; ++i) {
     al->data[index + i] = data_dup(src->data[i], al->type);
     if (!al->data[index + i]) {
-      CALIST_MEM_ERR("Failed to duplicate item!");
+      FATAL_ERROR(ERROR_ITEM_DUP);
     }
   }
   al->size += src->size;
 }
 
 void calist_pop(calist *al, size_t index) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(index < al->size, INDEX_ASSERT_BOUNDED);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_MSG(index < al->size, ASSERT_INDEX_BOUNDED);
 
   data_destroy(al->data[index], al->type);
   for (size_t i = index; i < al->size - 1; ++i) {
@@ -312,9 +305,9 @@ void calist_pop(calist *al, size_t index) {
 }
 
 size_t calist_remove(calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_NOT_NULL(item, NULL);
 
   for (size_t i = 0; i < al->size; ++i) {
     if (!data_cmp(item, al->data[i], al->type)) {
@@ -326,9 +319,9 @@ size_t calist_remove(calist *al, const void *item) {
 }
 
 size_t calist_remove_last(calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_NOT_NULL(item, NULL);
 
   for (size_t i = al->size; i-- > 0;) {
     if (!data_cmp(item, al->data[i], al->type)) {
@@ -340,9 +333,9 @@ size_t calist_remove_last(calist *al, const void *item) {
 }
 
 size_t calist_remove_all(calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_NOT_NULL(item, NULL);
 
   size_t total = 0;
   for (size_t i = al->size; i-- > 0;) {
@@ -355,9 +348,9 @@ size_t calist_remove_all(calist *al, const void *item) {
 }
 
 size_t calist_remove_if(calist *al, calist_pred pred, const void *args) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(pred, "calist_pred cannot be NULL!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_NOT_NULL(pred, NULL);
 
   size_t total = 0;
   for (size_t i = al->size; i-- > 0;) {
@@ -370,12 +363,11 @@ size_t calist_remove_if(calist *al, calist_pred pred, const void *args) {
 }
 
 void calist_remove_range(calist *al, size_t from_index, size_t to_index) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(from_index < al->size, INDEX_ASSERT_BOUNDED);
-  ASSERT_MSG(to_index >= from_index, 
-             "The ending index cannot be less than the starting index!");
-  ASSERT_MSG(to_index <= al->size, "index must not exceed the size of calist!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_MSG(from_index < al->size, ASSERT_INDEX_BOUNDED);
+  ASSERT_MSG(to_index >= from_index, ASSERT_INDEX_END_AFTER_START);
+  ASSERT_MSG(to_index <= al->size, ASSERT_INDEX_BOUNDED_INCLUSIVE);
 
   size_t range = to_index - from_index;
   for (size_t i = from_index; i < to_index; ++i) {
@@ -388,14 +380,14 @@ void calist_remove_range(calist *al, size_t from_index, size_t to_index) {
 }
 
 bool calist_contains(const calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
   return (calist_index(al, item) != CALIST_INDEX_NOT_FOUND);
 }
 
 size_t calist_index(const calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
 
   for (size_t i = 0; i < al->size; ++i) {
     if (!data_cmp(item, al->data[i], al->type)) {
@@ -406,8 +398,8 @@ size_t calist_index(const calist *al, const void *item) {
 }
 
 size_t calist_index_last(const calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
 
   if (al->size == 0) {
     return CALIST_INDEX_NOT_FOUND;
@@ -422,10 +414,10 @@ size_t calist_index_last(const calist *al, const void *item) {
 }
 
 calist *calist_index_all(const calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
 
-  calist *indices = calist_create(size_t_type());
+  calist *indices = calist_create(ctype_size_t());
   for (size_t i = 0; i < al->size; ++i) {
     if (!data_cmp(item, al->data[i], al->type)) {
       calist_append(indices, &i);
@@ -436,10 +428,10 @@ calist *calist_index_all(const calist *al, const void *item) {
 
 calist *calist_index_all_if(const calist *al, calist_pred pred, 
                             const void *args) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(pred, "calist_pred cannot be NULL!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(pred, NULL);
 
-  calist *indices = calist_create(size_t_type());
+  calist *indices = calist_create(ctype_size_t());
   for (size_t i = 0; i < al->size; ++i) {
     if (pred(al, al->data[i], args)) {
       calist_append(indices, &i);
@@ -449,8 +441,8 @@ calist *calist_index_all_if(const calist *al, calist_pred pred,
 }
 
 size_t calist_count(const calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
 
   size_t total = 0;
   for (size_t i = 0; i < al->size; ++i) {
@@ -463,9 +455,9 @@ size_t calist_count(const calist *al, const void *item) {
 
 size_t calist_replace(calist *al, const void *old_item, 
                       const void *new_item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(old_item, ITEM_ASSERT_NULL);
-  ASSERT_MSG(new_item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(old_item, "The original item");
+  ASSERT_NOT_NULL(new_item, "The new item");
 
   size_t index = calist_index(al, old_item);
   if (index != CALIST_INDEX_NOT_FOUND) {
@@ -476,9 +468,9 @@ size_t calist_replace(calist *al, const void *old_item,
 
 size_t calist_replace_last(calist *al, const void *old_item, 
                            const void *new_item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(old_item, ITEM_ASSERT_NULL);
-  ASSERT_MSG(new_item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(old_item, "The original item");
+  ASSERT_NOT_NULL(new_item, "The new item");
 
   size_t index = calist_index_last(al, old_item);
   if (index != CALIST_INDEX_NOT_FOUND) {
@@ -489,9 +481,9 @@ size_t calist_replace_last(calist *al, const void *old_item,
 
 size_t calist_replace_all(calist *al, const void *old_item, 
                           const void *new_item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(old_item, ITEM_ASSERT_NULL);
-  ASSERT_MSG(new_item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(old_item, "The original item");
+  ASSERT_NOT_NULL(new_item, "The new item");
 
   size_t total = 0;
   for (size_t i = 0; i < al->size; ++i) {
@@ -505,9 +497,9 @@ size_t calist_replace_all(calist *al, const void *old_item,
 
 size_t calist_replace_if(calist *al, const void *new_item, 
                          calist_pred pred, const void *args) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(new_item, ITEM_ASSERT_NULL);
-  ASSERT_MSG(pred, "calist_pred cannot be NULL!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(new_item, "The replacement item");
+  ASSERT_NOT_NULL(pred, NULL);
 
   size_t total = 0;
   for (size_t i = 0; i < al->size; ++i) {
@@ -520,7 +512,7 @@ size_t calist_replace_if(calist *al, const void *new_item,
 }
 
 void calist_qsort(calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   if (al->size > 0) {
     qsort_range(al, 0, al->size - 1);
@@ -528,8 +520,8 @@ void calist_qsort(calist *al) {
 }
 
 size_t calist_bsearch(const calist *al, const void *item) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(item, ITEM_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(item, NULL);
 
   if (al->size == 0) {
     return CALIST_INDEX_NOT_FOUND;
@@ -553,19 +545,18 @@ size_t calist_bsearch(const calist *al, const void *item) {
 }
 
 void calist_reverse(calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
   for (size_t i = 0; i < al->size / 2; ++i) {
     calist_swap(al, i, al->size - i - 1);
   }
 }
 
 calist *calist_slice(const calist *al, size_t from_index, size_t to_index) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(al->size > 0, CALIST_ASSERT_EMPTY);
-  ASSERT_MSG(from_index < al->size, INDEX_ASSERT_BOUNDED);
-  ASSERT_MSG(to_index >= from_index, 
-             "The ending index cannot be less than the starting index!");
-  ASSERT_MSG(to_index <= al->size, "index must not exceed the size of calist!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_MSG(al->size > 0, ASSERT_CALIST_NOT_EMPTY);
+  ASSERT_MSG(from_index < al->size, ASSERT_INDEX_BOUNDED);
+  ASSERT_MSG(to_index >= from_index, ASSERT_INDEX_END_AFTER_START);
+  ASSERT_MSG(to_index <= al->size, ASSERT_INDEX_BOUNDED_INCLUSIVE);
 
   calist *sub = calist_create(al->type);
   calist_reserve(sub, to_index - from_index);
@@ -576,8 +567,8 @@ calist *calist_slice(const calist *al, size_t from_index, size_t to_index) {
 }
 
 calist *calist_filter(const calist *al, calist_pred pred, const void *args) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(pred, "calist_pred cannot be NULL!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(pred, NULL);
 
   calist *filtered = calist_create(al->type);
   for (size_t i = 0; i < al->size; ++i) {
@@ -589,8 +580,8 @@ calist *calist_filter(const calist *al, calist_pred pred, const void *args) {
 }
 
 void calist_foreach(const calist *al, calist_map map, const void *args) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
-  ASSERT_MSG(map, "calist_map cannot be NULL!");
+  ASSERT_NOT_NULL(al, NULL);
+  ASSERT_NOT_NULL(map, NULL);
 
   for (size_t i = 0; i < al->size; ++i) {
     map(al, al->data[i], args);
@@ -598,7 +589,7 @@ void calist_foreach(const calist *al, calist_map map, const void *args) {
 }
 
 calist *calist_unique(const calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   calist *unique = calist_create(al->type);
   for (size_t i = 0; i < al->size; ++i) {
@@ -610,15 +601,15 @@ calist *calist_unique(const calist *al) {
 }
 
 size_t calist_remove_dup(calist *al) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   size_t total = 0;
   for (size_t i = 0; i < al->size; ++i) {
-    size_t count = calist_count(al, al->data[i]);
-    while (count > 1) {
-      calist_remove_last(al, al->data[i]);
-      --count;
-      ++total;
+    for (size_t j = al->size; j-- > i + 1;) {
+      if (!data_cmp(al->data[j], al->data[i], al->type)) {
+        calist_pop(al, j);
+        ++total;
+      }
     }
   }
   return total;
@@ -626,7 +617,7 @@ size_t calist_remove_dup(calist *al) {
 
 // Helper function implementation
 static void qsort_range(calist *al, size_t first, size_t last) {
-  ASSERT_MSG(al, CALIST_ASSERT_NULL);
+  ASSERT_NOT_NULL(al, NULL);
 
   if (last <= first) {
     return;
