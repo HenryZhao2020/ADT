@@ -1,13 +1,12 @@
 // Demonstration of calist usage.
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <assert.h>
 #include "calist.h"
 
 // Append stack-allocated, temporary values to al
 static void calist_append_stack(calist *al) {
-  assert(al);
-
   int a = 5;
   const int b = 10;
   calist_append(al, &a);    // a is deep-copied into al
@@ -20,8 +19,6 @@ static void calist_append_stack(calist *al) {
 
 // Append heap-allocated objects to al
 static void calist_append_heap(calist *al) {
-  assert(al);
-
   int *ptr = malloc(sizeof(*ptr));
   *ptr = 30;
   calist_append(al, ptr);   // ptr is deep-copied into al
@@ -30,24 +27,20 @@ static void calist_append_heap(calist *al) {
 
 // Check if num is even
 static bool is_even(const calist *al, const void *item, const void *args) {
-  assert(al);
-  assert(item);
   const int *int_item = item;
   return (*int_item % 2 == 0);
 }
 
 // Multiply the value of num by 3
 static void multiply(const calist *al, void *item, const void *args) {
-  assert(al);
-  assert(item);
   int *int_ptr = item;
   const int *factor = args;
   *int_ptr *= (*factor);
 }
 
 int main(void) {
-  // Create an integer calist ['int_type' is included in datatype.h]
-  calist *al = calist_create(int_type());
+  // Create an integer calist ['ctype_int' is included in ctype.h]
+  calist *al = calist_create(ctype_int());
   
   // Append integers to the back of al
   calist_append_stack(al);
