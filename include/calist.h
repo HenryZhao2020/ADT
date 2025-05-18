@@ -1,4 +1,4 @@
-// This module provides the calist ADT.
+// The calist module provides the calist ADT.
 
 #ifndef CALIST_H
 #define CALIST_H
@@ -265,13 +265,13 @@ size_t calist_index(const calist *al, const void *item);
 // requires: al and item are not NULL
 size_t calist_index_last(const calist *al, const void *item);
 
-// calist_index_all(al, item) produces a calist of size_t_type() containing 
+// calist_index_all(al, item) produces a calist of ctype_size_t() containing 
 //   the index positions of all occurrences of item in al.
 // requires: al and item are not NULL
 // effects: allocates heap memory [caller must free with calist_destroy]
 calist *calist_index_all(const calist *al, const void *item);
 
-// calist_index_all_if(al, pred, args) produces a calist of size_t_type() 
+// calist_index_all_if(al, pred, args) produces a calist of ctype_size_t() 
 //   containing the index positions of all items in al that satisfy pred, 
 //   where args provides additional arguments to the pred function.
 // requires: al and pred are not NULL
